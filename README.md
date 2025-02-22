@@ -22,7 +22,7 @@ This project implements an **automated trading system** using a **Genetic Algori
 
 ### 1. Clone the Repository
 ```sh
-git clone https://github.com/yourusername/genetic-trading-bot.git
+git clone https://github.com/LoQiseaking69/CoinFx.git
 cd genetic-trading-bot
 ```
 
