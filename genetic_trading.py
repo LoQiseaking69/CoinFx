@@ -29,7 +29,8 @@ class APIManager:
         """Initialize Coinbase API Client if credentials exist."""
         api_key = os.getenv("COINBASE_API_KEY")
         api_secret = os.getenv("COINBASE_API_SECRET")
-        return cbpro.AuthenticatedClient(api_key, api_secret) if api_key else None
+        api_passphrase = os.getenv("COINBASE_API_PASSPHRASE")
+        return cbpro.AuthenticatedClient(api_key, api_secret, api_passphrase) if api_key and api_secret and api_passphrase else None
 
     def execute_trade(self, symbol, signal, platform):
         """Executes trade on the chosen platform based on evolved strategy."""
@@ -38,8 +39,7 @@ class APIManager:
                 order_data = {
                     "order": {
                         "instrument": symbol,
-                        "units": "100",
-                        "side": "buy" if signal == 1 else "sell",
+                        "units": 100 if signal == 1 else -100,
                         "type": "MARKET"
                     }
                 }
@@ -47,7 +47,11 @@ class APIManager:
                 logging.info(f"OANDA: Executed {('BUY' if signal == 1 else 'SELL')} order for {symbol}")
 
             elif platform == "coinbase" and self.coinbase_client:
-                self.coinbase_client.place_market_order(product_id=symbol, side="buy" if signal == 1 else "sell", funds="100")
+                self.coinbase_client.place_market_order(
+                    product_id=symbol, 
+                    side="buy" if signal == 1 else "sell", 
+                    funds="100"
+                )
                 logging.info(f"Coinbase: Executed {('BUY' if signal == 1 else 'SELL')} order for {symbol}")
 
             else:
@@ -77,11 +81,13 @@ class TradeSimulator:
 
         for i, signal in enumerate(chromosome):
             try:
+                execution_price = self.data[i] * (1 - self.slippage) if signal == 1 else self.data[i] * (1 + self.slippage)
+
                 if signal == 1:  # Buy
-                    position = (capital * (1 - self.transaction_cost)) / (self.data[i] * (1 + self.slippage))
+                    position = (capital * (1 - self.transaction_cost)) / execution_price
                     capital -= capital * self.transaction_cost
                 elif signal == 0 and position > 0:  # Sell
-                    capital = position * self.data[i] * (1 - self.transaction_cost)
+                    capital = position * execution_price * (1 - self.transaction_cost)
                     position = 0
                     returns.append((capital - self.initial_capital) / self.initial_capital)
 
@@ -137,9 +143,9 @@ class GeneticTradingStrategy:
 
     def _select_parents(self):
         """Select parents for reproduction based on fitness ranking."""
-        fitness_scores = [self.simulator.backtest(chromosome)[1] for chromosome in self.population]
-        sorted_population = [x for _, x in sorted(zip(fitness_scores, self.population), reverse=True)]
-        return random.choice(sorted_population[:10]), random.choice(sorted_population[:10])
+        fitness_scores = np.array([self.simulator.backtest(chromosome)[1] for chromosome in self.population])
+        probabilities = fitness_scores / np.sum(fitness_scores)
+        return list(np.random.choice(self.population, size=2, p=probabilities))
 
     def _crossover(self, parent1, parent2):
         """Apply crossover between two parents to generate offspring."""
@@ -165,15 +171,12 @@ class GeneticTradingStrategy:
                 new_population.extend([self._mutate(offspring1), self._mutate(offspring2)])
             self.population = new_population
         
-        return max(self.population, key=self.simulator.backtest)
+        return max(self.population, key=lambda chromo: self.simulator.backtest(chromo)[1])
 
 # Usage Example
-# from genetic_trading import GeneticTradingStrategy, APIManager
-#
 # market_data = [...]  # Load real market data
 # strategy = GeneticTradingStrategy(market_data)
 # best_strategy = strategy.evolve()
-#
 # api_manager = APIManager()
 # signal = best_strategy[-1]
 # api_manager.execute_trade("BTC-USD", signal, "coinbase")
