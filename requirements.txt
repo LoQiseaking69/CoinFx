@@ -4,8 +4,7 @@ scikit-learn
 requests
 asyncio
 websockets
-dotenv
-logging
+python-dotenv
 oandapyV20
 cbpro
 tensorflow
@@ -13,6 +12,5 @@ keras
 pickle-mixin
 tkinterdnd2
 ttkthemes
-sqlite
 h5py
 pytest
