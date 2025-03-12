@@ -20,177 +20,120 @@
    - **Binary Signals** – Buy/Sell only.  
    - **Continuous Signals** – Buy/Sell with position sizing.  
    - **Multi-Class Signals** – Hold/Buy/Sell.  
-✔ **Modular & Scalable Architecture** – Designed for **cloud deployment** and **high-frequency trading**.  
+✔ **Modular & Scalable Architecture** – Designed for **Docker-based deployment** and **cloud automation**.  
 
 ---
 
 ## **📌 Installation**
-
 ### **1️⃣ Clone the Repository**
 ```sh
 git clone https://github.com/LoQiseaking69/CoinFx.git
 cd CoinFx
 ```
 
-### **2️⃣ Install Dependencies**
-Ensure you have **Python 3.8+** and install the required packages:
+### **2️⃣ Install Docker**
+Ensure **Docker** is installed:
 ```sh
-pip install -r requirements.txt
+sudo apt update && sudo apt install docker.io -y
+```
+Then, check if Docker is running:
+```sh
+docker --version
 ```
 
-### **3️⃣ Set Up API Credentials**
-Create a `.env` file and add your **OANDA** and **Coinbase API credentials**:
-```ini
-OANDA_ACCESS_TOKEN=your_oanda_access_token
-OANDA_ACCOUNT_ID=your_oanda_account_id
-COINBASE_API_KEY=your_coinbase_api_key
-COINBASE_API_SECRET=your_coinbase_api_secret
-```
-Then, load the environment variables:
+### **3️⃣ Build & Run the Bot as a Container**
 ```sh
-export $(grep -v '^#' .env | xargs)
+docker build -t coinfx-trading-bot .
+docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot
 ```
 
 ---
 
-## **🛠 Unit Testing & Debugging**
-
-### **1️⃣ Test API Configuration**
-Run this script to check if API keys are correctly loaded:
-```python
-from config import validate_config
-
-try:
-    validate_config()
-    print("✅ API configuration is valid.")
-except Exception as e:
-    print(f"❌ Config Error: {e}")
-```
-
-### **2️⃣ Test Data Handling (Historical Data & WebSocket)**
-```python
-from data_handler import get_historical_data, start_live_data_listener
-import threading
-
-df = get_historical_data("BTC")
-if df is not None and not df.empty:
-    print("✅ Historical data fetched successfully.")
-else:
-    print("❌ Historical data fetch failed.")
-
-# Start live data feed
-threading.Thread(target=start_live_data_listener, daemon=True).start()
-print("✅ Live data listener started.")
-```
-
-### **3️⃣ Test Model Training & Prediction**
-```python
-from model import train_or_update_model, predict_price
-
-train_or_update_model()
-print("✅ Model trained successfully.")
-
-prediction = predict_price()
-if prediction:
-    print(f"✅ Model prediction successful: {prediction}")
-else:
-    print("❌ Model prediction failed.")
-```
-
-### **4️⃣ Test Trading Execution**
-```python
-from trading_bot import TradingBotGUI
-import tkinter as tk
-
-root = tk.Tk()
-app = TradingBotGUI(root)
-root.mainloop()
-```
-
-Check **log files** for errors:
+## **📌 One-Command Execution (`fxcbot`)**
+After deployment, **you can run the bot anywhere** with:
 ```sh
-tail -f logs/trading.log
+fxcbot
 ```
+
+#### **🔹 Install `fxcbot` Locally**
+Run the following to create a **global shell command**:
+```sh
+echo "#!/bin/bash" > fxcbot
+echo "docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot "\$@"" >> fxcbot
+chmod +x fxcbot
+sudo mv fxcbot /usr/local/bin/
+```
+
+Now, just type:
+```sh
+fxcbot
+```
+**The bot will launch automatically inside Docker.** ✅
 
 ---
 
-## **🚀 Deployment Plan**
+## **🚀 Automated Deployment with GitHub Actions**
+Every time you **push updates to GitHub**, the bot **rebuilds automatically**.  
 
-### **1️⃣ Choose Deployment Type**
-✅ **Local Machine (Development Mode)** – Run manually on your computer.  
-✅ **Cloud Deployment (Production Mode)** – Deploy on **AWS, GCP, or DigitalOcean** for **24/7 trading**.  
-
-### **2️⃣ Deploy on AWS EC2 (Example)**
-#### **Step 1: Set Up EC2**
-1️⃣ Launch an **Ubuntu 22.04 EC2 instance**.  
-2️⃣ SSH into the instance:
+### **📌 Set Up GitHub Actions**
+1️⃣ Navigate to `.github/workflows/`  
+2️⃣ Create `deploy.yml`:
 ```sh
-ssh -i your-key.pem ubuntu@your-server-ip
+mkdir -p .github/workflows
+nano .github/workflows/deploy.yml
 ```
-3️⃣ Install Python and dependencies:
+3️⃣ Paste this **GitHub Actions CI/CD** workflow:
+
+```yaml
+name: Deploy CoinFx Trading Bot with Docker
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Install Docker
+        run: |
+          sudo apt update
+          sudo apt install -y docker.io
+
+      - name: 🔧 Build Docker Image
+        run: |
+          docker build -t coinfx-trading-bot .
+
+      - name: 🚀 Create Executable for Linux
+        run: |
+          echo "#!/bin/bash" > fxcbot
+          echo "docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot "\$@"" >> fxcbot
+          chmod +x fxcbot
+          sudo mv fxcbot /usr/local/bin/
+
+      - name: ✅ Verify Installation
+        run: |
+          which fxcbot
+          fxcbot --help || echo "Bot is installed successfully!"
+```
+
+### **📌 Push & Deploy**
 ```sh
-sudo apt update && sudo apt install python3-pip -y
-pip3 install -r requirements.txt
-```
-4️⃣ Set up API credentials:
-```sh
-nano .env
-```
-Add:
-```ini
-OANDA_ACCESS_TOKEN=your_oanda_access_token
-OANDA_ACCOUNT_ID=your_oanda_account_id
-COINBASE_API_KEY=your_coinbase_api_key
-COINBASE_API_SECRET=your_coinbase_api_secret
+git add .github/workflows/deploy.yml
+git commit -m "Added Docker-based GitHub Actions deployment"
+git push origin main
 ```
 
-#### **Step 2: Start the Bot**
-Run in **background mode**:
-```sh
-nohup python3 trading_bot.py &
-```
-Check logs:
-```sh
-tail -f logs/trading.log
-```
-
----
-
-## **📜 Code Overview**
-### **1️⃣ APIManager (Live Trading)**
-Handles authentication and trade execution for **OANDA** and **Coinbase**.
-```python
-class APIManager:
-    def __init__(self):
-        self.oanda_client = self._initialize_oanda_client()
-        self.coinbase_client = self._initialize_coinbase_client()
-```
-- **`execute_trade(symbol, signal, platform)`** – Places a market order.
-
-### **2️⃣ TradeSimulator (Backtesting)**
-Simulates trading on historical data and calculates **performance metrics**.
-```python
-class TradeSimulator:
-    def backtest(self, chromosome):
-        # Evaluates strategy performance
-```
-- **`backtest(chromosome)`** – Runs a simulation and returns:
-  - `final_capital`
-  - `sharpe_ratio`
-  - `max_drawdown`
-  - `profit_factor`
-
-### **3️⃣ GeneticTradingStrategy (GA Optimization)**
-Uses a **genetic algorithm** to find the best trading strategy.
-```python
-class GeneticTradingStrategy:
-    def evolve(self):
-        # Evolves trading strategies over generations
-```
-- **`_select_parents()`** – Selects the best strategies.  
-- **`_crossover(parent1, parent2)`** – Mixes strategies.  
-- **`_mutate(chromosome)`** – Introduces random mutations.  
-- **`evolve()`** – Runs the GA for **200 generations**.  
+Now, the bot will **automatically rebuild** when you push updates to GitHub. ✅  
 
 ---
 
@@ -212,8 +155,18 @@ class GeneticTradingStrategy:
 
 ---
 
+## **🚀 Quick Start Summary**
+| **Task** | **Command** |
+|----------|------------|
+| **Clone the repository** | `git clone https://github.com/LoQiseaking69/CoinFx.git && cd CoinFx` |
+| **Install Docker** | `sudo apt update && sudo apt install docker.io -y` |
+| **Build the Docker image** | `docker build -t coinfx-trading-bot .` |
+| **Run the bot inside Docker** | `docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot` |
+| **Make `fxcbot` command globally available** | `echo "docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot" > fxcbot && chmod +x fxcbot && sudo mv fxcbot /usr/local/bin/` |
+| **Run the bot from anywhere** | `fxcbot` |
+
+---
+
 ## **⚠ Disclaimer**
 🚨 **This is an experimental trading bot. Use at your own risk.**  
 📉 **There are NO guarantees of profit.** Always backtest strategies thoroughly before deploying to real markets.  
-
----
