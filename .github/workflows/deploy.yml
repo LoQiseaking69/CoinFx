@@ -1,4 +1,4 @@
-name: Deploy CoinFx Trading Bot with Docker
+name: 🚀 Deploy CoinFx Trading Bot with Docker
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,23 +17,43 @@ jobs:
       - name: 🛠️ Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🐳 Install Docker
-        run: |
-          sudo apt update
-          sudo apt install -y docker.io
+      - name: 🐳 Set up Docker
+        uses: docker/setup-buildx-action@v3
 
-      - name: 🔧 Build Docker Image
-        run: |
-          docker build -t coinfx-trading-bot .
+      - name: 🏷️ Log in to Docker Hub (Optional - if you have a registry)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 🚀 Create Executable for Linux
+      - name: 🐋 Build and Tag Docker Image
         run: |
-          echo "#!/bin/bash" > fxcbot
-          echo "docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot \"\$@\"" >> fxcbot
-          chmod +x fxcbot
-          sudo mv fxcbot /usr/local/bin/
+          docker build -t coinfx-trading-bot:${{ github.sha }} -t coinfx-trading-bot:latest .
 
-      - name: ✅ Verify Installation
+      - name: 🧪 Run Basic Sanity Test
         run: |
-          which fxcbot
-          fxcbot --help || echo "Bot is installed successfully!"
+          docker run --rm coinfx-trading-bot:latest --help || (echo "Sanity check failed!" && exit 1)
+
+      - name: 🚢 Push Docker Image to Docker Hub (Optional)
+        run: |
+          docker push coinfx-trading-bot:${{ github.sha }}
+          docker push coinfx-trading-bot:latest
+
+      - name: 📦 Create Executable Wrapper
+        run: |
+          sudo tee /usr/local/bin/fxcbot > /dev/null <<EOF
+          #!/bin/bash
+          docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot:latest "\$@"
+          EOF
+          sudo chmod +x /usr/local/bin/fxcbot
+
+      - name: ✅ Verify fxcbot Installation
+        run: |
+          command -v fxcbot
+          fxcbot --help && echo "🚀 Bot is installed and verified successfully!"
+
+      - name: 📤 Upload Executable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fxcbot-linux
+          path: /usr/local/bin/fxcbot
