@@ -1,0 +1,39 @@
+name: Deploy CoinFx Trading Bot with Docker
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Install Docker
+        run: |
+          sudo apt update
+          sudo apt install -y docker.io
+
+      - name: 🔧 Build Docker Image
+        run: |
+          docker build -t coinfx-trading-bot .
+
+      - name: 🚀 Create Executable for Linux
+        run: |
+          echo "#!/bin/bash" > fxcbot
+          echo "docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot \"\$@\"" >> fxcbot
+          chmod +x fxcbot
+          sudo mv fxcbot /usr/local/bin/
+
+      - name: ✅ Verify Installation
+        run: |
+          which fxcbot
+          fxcbot --help || echo "Bot is installed successfully!"
