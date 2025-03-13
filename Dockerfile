@@ -50,19 +50,21 @@ RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'xhost +local:docker' >> /startup.sh && \
     echo 'echo "🖥️ Setting up X11 authentication..."' >> /startup.sh && \
     echo 'touch /tmp/.docker.xauth' >> /startup.sh && \
-    echo 'xauth generate :0 . trusted' >> /startup.sh && \
-    echo 'xauth add :0 . $(mcookie)' >> /startup.sh && \
+    echo 'if ! command -v mcookie &> /dev/null; then apt-get update && apt-get install -y mcookie; fi' >> /startup.sh && \
+    echo 'xauth generate $DISPLAY . trusted' >> /startup.sh && \
+    echo 'xauth add $DISPLAY . $(mcookie)' >> /startup.sh && \
     echo 'chown dockeruser:dockeruser /tmp/.docker.xauth' >> /startup.sh && \
+    echo 'echo "🚀 Launching application..."' >> /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
     chmod +x /startup.sh
 
 # ✅ Create `fxcbot` script globally BEFORE switching users
 RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
     echo 'xhost +local:docker' | tee -a /etc/bash.bashrc && \
-    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth -e XAUTHORITY=/tmp/.docker.xauth --name coinfx-trading-bot ghcr.io/loqiseaking69/coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
+    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.docker.xauth -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth --name coinfx-trading-bot ghcr.io/loqiseaking69/coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
     chmod +x /usr/local/bin/fxcbot
 
-# ✅ Fix `xhost` issues for GUI applications
+# ✅ Ensure `xhost` commands persist for GUI visibility
 RUN echo "xhost +local:docker" >> /etc/bash.bashrc
 
 # ✅ Switch to non-root user for security
