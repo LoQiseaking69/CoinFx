@@ -13,12 +13,11 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # ✅ Install required system dependencies (Minimal GUI & Essentials)
-#    Replace `mcookie` with `util-linux` on Debian 12 for `mcookie`.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
     libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
     dbus-x11 xdg-utils libxkbcommon-x11-0 \
-    git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux \
+    git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime \
     && rm -rf /var/lib/apt/lists/*
 
 # ✅ Copy project files (So we can install dependencies from them)
@@ -40,8 +39,8 @@ RUN python3 -m venv /app/venv \
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
 
-# ✅ Create a non-root user for security & own the app directory
-RUN useradd -m dockeruser && chown -R dockeruser /app
+# ✅ Create a non-root user for security & set permissions
+RUN useradd -m dockeruser && chown -R dockeruser /app /app/venv
 
 # ✅ Inject X11 GUI setup & authentication into the startup process
 RUN echo '#!/bin/bash' > /startup.sh && \
@@ -50,7 +49,7 @@ RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'echo "🖥️ Setting up X11 authentication..."' >> /startup.sh && \
     echo 'touch /tmp/.docker.xauth' >> /startup.sh && \
     echo 'xauth generate "$DISPLAY" . trusted' >> /startup.sh && \
-    echo 'xauth add "$DISPLAY" . $(mcookie)' >> /startup.sh && \
+    echo 'xauth add "$DISPLAY" . $(uuidgen)' >> /startup.sh && \
     echo 'chown dockeruser:dockeruser /tmp/.docker.xauth' >> /startup.sh && \
     echo 'echo "🚀 Launching application..."' >> /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
