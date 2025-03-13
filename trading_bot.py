@@ -43,7 +43,6 @@ class TradingBotGUI:
                 prediction = predict_price()
                 if prediction is not None:
                     logger.info(f"Predicted Price: {prediction}")
-                    print(f"Predicted Price: {prediction}")
                 else:
                     logger.warning("Prediction returned None. Skipping trade cycle.")
                 
@@ -51,20 +50,15 @@ class TradingBotGUI:
 
             except Exception as e:
                 logger.error(f"Error during trade execution: {e}")
-                self.status_label.config(text="Status: Error. Check Logs.")
+                self.status_label.config(text="Status: Error")
 
     def stop_trading(self):
-        """Stop trading execution."""
-        if self.trading_active:
-            self.trading_active = False
-            if self.trade_thread and self.trade_thread.is_alive():
-                self.trade_thread.join(timeout=1)  # Ensure clean thread shutdown
-            self.status_label.config(text="Status: Trading Stopped")
-            messagebox.showinfo("Trading Bot", "Trading Stopped.")
+        """Stop the trading process."""
+        self.trading_active = False
+        self.status_label.config(text="Status: Stopped")
+        messagebox.showinfo("Trading Bot", "Trading Stopped.")
 
 if __name__ == "__main__":
-    threading.Thread(target=start_live_data_listener, daemon=True).start()
-    
     root = tk.Tk()
     app = TradingBotGUI(root)
     root.mainloop()
