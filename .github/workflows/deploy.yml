@@ -21,14 +21,14 @@ jobs:
       run: |
         python3 -m venv venv
         source venv/bin/activate
-        pip install --upgrade pip
+        pip install --upgrade pip setuptools wheel
         pip install numpy scipy tensorflow keras scikit-learn pandas websocket-client grpcio protobuf python-dotenv || {
           echo "⚠️ Conflict detected! Fixing dependencies..."
           pip uninstall -y cbpro requests six
           pip install requests>=2.21.0 six>=1.12.0 tensorflow keras numpy scipy scikit-learn pandas websocket-client grpcio protobuf python-dotenv
           pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
         }
-        pip freeze > requirements.txt
+        pip freeze | grep -v "pkg-resources" > requirements.txt  # ✅ Remove pkg-resources conflicts
         deactivate
 
     - name: 🛠 Build Docker Image
