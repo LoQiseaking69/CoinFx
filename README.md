@@ -1,12 +1,10 @@
-# **CoinFx**
-## **AI-Powered Genetic Algorithm Trading Bot**
-
+# **🚀 CoinFx: AI-Powered Genetic Algorithm Trading Bot**
 **CoinFx** is a **fully automated trading system** that integrates **Genetic Algorithm (GA) optimization** and **LSTM-based AI prediction** to maximize trading performance. It supports **live trading** on **OANDA (Forex) and Coinbase (Crypto)** while also offering **backtesting and real-time market analysis**.
 
 ---
 
-## **🚀 Features**
-✔ **Hybrid AI & Genetic Algorithm** – Uses **AI price prediction** combined with **GA strategy evolution**.  
+## **🌟 Key Features**
+✔ **AI & Genetic Algorithm Hybrid** – Combines **AI price prediction** with **GA strategy evolution**.  
 ✔ **Live Trading Execution** – Supports real-time trading on:  
    - **OANDA (Forex)**  
    - **Coinbase (Crypto)**  
@@ -169,4 +167,4 @@ Now, the bot will **automatically rebuild** when you push updates to GitHub. ✅
 
 ## **⚠ Disclaimer**
 🚨 **This is an experimental trading bot. Use at your own risk.**  
-📉 **There are NO guarantees of profit.** Always backtest strategies thoroughly before deploying to real markets.  
+📉 **There are NO guarantees of profit.** Always backtest strategies thoroughly before deploying to real markets.
