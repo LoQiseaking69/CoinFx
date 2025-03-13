@@ -2,7 +2,8 @@ import os
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, LayerNormalization
-from config import MODEL_FILE, LOOKBACK, LEARNING_RATE, EPOCHS, BATCH_SIZE, get_logger
+from tensorflow.keras.callbacks import EarlyStopping
+from config import TRADING_CONFIG, get_logger
 from data_handler import get_historical_data, preprocess_data, SCALER_FILE, data_buffer
 import pickle
 import numpy as np
@@ -10,7 +11,7 @@ import numpy as np
 logger = get_logger()
 
 def train_or_update_model():
-    """Train a new LSTM model or update an existing one."""
+    """Train or update an LSTM model."""
     try:
         df = get_historical_data("BTC")
         if df is None or df.empty:
@@ -21,27 +22,22 @@ def train_or_update_model():
         if X_train is None or y_train is None:
             logger.warning("Preprocessed data is invalid. Training aborted.")
             return
-        
-        # Check if model already exists
-        if os.path.exists(MODEL_FILE):
-            logger.info("Loading existing model for further training.")
-            model = load_model(MODEL_FILE)
-        else:
-            logger.info("Creating a new LSTM model.")
-            model = Sequential([
-                LSTM(50, return_sequences=True, input_shape=(LOOKBACK, 1)),
-                LayerNormalization(),
-                Dropout(0.2),
-                LSTM(50, return_sequences=False),
-                Dense(25, activation="relu"),
-                Dense(1)
-            ])
-            model.compile(optimizer=tf.keras.optimizers.Adam(LEARNING_RATE), loss="mse")
 
-        model.fit(X_train, y_train, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=1)
+        model = Sequential([
+            LSTM(50, return_sequences=True, input_shape=(TRADING_CONFIG["LOOKBACK"], 1)),
+            LayerNormalization(),
+            Dropout(0.2),
+            LSTM(50, return_sequences=False),
+            Dense(25, activation="relu"),
+            Dense(1)
+        ])
 
-        # Save the model and scaler
-        model.save(MODEL_FILE)
+        model.compile(optimizer=tf.keras.optimizers.Adam(TRADING_CONFIG["LEARNING_RATE"]), loss="mse")
+
+        early_stop = EarlyStopping(monitor='loss', patience=3, restore_best_weights=True)
+        model.fit(X_train, y_train, epochs=TRADING_CONFIG["EPOCHS"], batch_size=TRADING_CONFIG["BATCH_SIZE"], callbacks=[early_stop])
+
+        model.save(TRADING_CONFIG["MODEL_FILE"])
         pickle.dump(scaler, open(SCALER_FILE, "wb"))
         logger.info("Model training complete and saved.")
 
@@ -51,18 +47,18 @@ def train_or_update_model():
 def predict_price():
     """Predict the next price movement using the trained LSTM model."""
     try:
-        if len(data_buffer) < LOOKBACK:
+        if len(data_buffer) < TRADING_CONFIG["LOOKBACK"]:
             logger.warning("Not enough recent data for prediction.")
             return None
 
-        if not os.path.exists(MODEL_FILE):
+        if not os.path.exists(TRADING_CONFIG["MODEL_FILE"]):
             logger.info("Model file not found. Training a new model.")
             train_or_update_model()
 
-        model = load_model(MODEL_FILE)
+        model = load_model(TRADING_CONFIG["MODEL_FILE"])
         scaler = pickle.load(open(SCALER_FILE, "rb"))
 
-        recent_data = np.array(data_buffer)[-LOOKBACK:].reshape(-1, 1)
+        recent_data = np.array(data_buffer)[-TRADING_CONFIG["LOOKBACK"]:].reshape(-1, 1)
         scaled_data = scaler.transform(recent_data)
 
         prediction = model.predict(np.array([scaled_data]))[0][0]
