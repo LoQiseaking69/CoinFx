@@ -18,10 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Ensure virtual environment is correctly created & pip is available
+# ✅ Ensure virtual environment is correctly created & `pip` is available
 RUN python3 -m venv ${VENV_PATH} && \
-    ${VENV_PATH}/bin/python -m ensurepip && \
-    ${VENV_PATH}/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
+    ${VENV_PATH}/bin/python -m ensurepip --default-pip && \
+    ${VENV_PATH}/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ✅ Copy project files after setting up venv (Optimizes caching)
 COPY . .
@@ -56,4 +56,4 @@ USER dockeruser
 EXPOSE 5000
 
 # ✅ Run inside the virtual environment to ensure dependencies are available
-CMD ["python", "main.py"]
+CMD ["/app/venv/bin/python", "main.py"]
