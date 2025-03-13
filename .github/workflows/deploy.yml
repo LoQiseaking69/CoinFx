@@ -20,11 +20,11 @@ jobs:
       run: |
         python -m venv venv && source venv/bin/activate
         pip install --upgrade pip
-        pip install numpy scipy tensorflow keras scikit-learn pandas websocket-client grpcio protobuf cbpro requests python-dotenv || {
-          echo "Conflict detected. Automatically correcting cbpro dependency:"
-          pip uninstall -y cbpro requests
-          pip install requests tensorflow keras numpy scipy scikit-learn pandas websocket-client grpcio protobuf python-dotenv
-          pip install git+https://github.com/danpaquin/coinbasepro-python.git
+        pip install numpy scipy tensorflow keras scikit-learn pandas websocket-client grpcio protobuf python-dotenv || {
+          echo "⚠️ Conflict detected! Fixing dependencies..."
+          pip uninstall -y cbpro requests six
+          pip install requests>=2.21.0 six>=1.12.0 tensorflow keras numpy scipy scikit-learn pandas websocket-client grpcio protobuf python-dotenv
+          pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
         }
         pip freeze > requirements.txt
         deactivate
@@ -40,7 +40,7 @@ jobs:
     - name: 🚀 Create fxcbot Executable
       run: |
         echo '#!/bin/bash
-        docker run --rm coinfx-trading-bot:latest "$@"' | sudo tee /usr/local/bin/fxcbot
+        docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot "$@"' | sudo tee /usr/local/bin/fxcbot
         sudo chmod +x /usr/local/bin/fxcbot
 
     - name: 📤 Upload Executable Artifact
