@@ -8,20 +8,23 @@ import pickle
 import time
 from collections import deque
 from sklearn.preprocessing import MinMaxScaler
-from config import API_URL, LOOKBACK, SCALER_FILE, get_logger
+from config import TRADING_CONFIG, SCALER_FILE, get_logger
 
 logger = get_logger()
 data_buffer = deque(maxlen=1000)
 
-# Fetch historical data with error handling
-def get_historical_data(asset, granularity=300):
-    path = f"/products/{asset}-USD/candles?granularity={granularity}"
+# Fetch historical data with caching & error handling
+def get_historical_data(asset, granularity=300, cache={}):
+    if (asset, granularity) in cache:
+        return cache[(asset, granularity)]
+
+    path = f"https://api.pro.coinbase.com/products/{asset}-USD/candles?granularity={granularity}"
     max_retries = 3
     retry_delay = 5  # seconds
 
     for attempt in range(max_retries):
         try:
-            response = requests.get(API_URL + path, timeout=10)
+            response = requests.get(path, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -32,6 +35,7 @@ def get_historical_data(asset, granularity=300):
             df["time"] = pd.to_datetime(df["time"], unit="s")
             df.sort_values("time", inplace=True)
 
+            cache[(asset, granularity)] = df  # Cache data
             return df
 
         except (requests.RequestException, ValueError) as e:
@@ -55,12 +59,12 @@ def preprocess_data(df):
         scaled_data = scaler.fit_transform(df["close"].values.reshape(-1, 1))
 
         X, y = [], []
-        for i in range(LOOKBACK, len(scaled_data)):
-            X.append(scaled_data[i-LOOKBACK:i])
+        for i in range(TRADING_CONFIG["LOOKBACK"], len(scaled_data)):
+            X.append(scaled_data[i - TRADING_CONFIG["LOOKBACK"]:i])
             y.append(scaled_data[i])
 
         pickle.dump(scaler, open(SCALER_FILE, "wb"))
-        return np.array(X).reshape(-1, LOOKBACK, 1), np.array(y), scaler
+        return np.array(X).reshape(-1, TRADING_CONFIG["LOOKBACK"], 1), np.array(y), scaler
 
     except ValueError as e:
         logger.error(f"Error in data preprocessing: {e}")
