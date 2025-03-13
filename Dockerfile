@@ -1,7 +1,7 @@
 # ✅ Use a lightweight, optimized Python 3.10 base image
 FROM python:3.10-slim
 
-# ✅ Set environment variables for non-buffered output, correct timezone, and display
+# ✅ Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     TZ=UTC \
     DISPLAY=:0 \
@@ -17,14 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Create and activate a virtual environment before copying files
+# ✅ Ensure virtual environment is correctly created & activated
 RUN python3 -m venv /app/venv && \
     /app/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# ✅ Copy project files after environment setup (improves Docker caching)
+# ✅ Copy project files AFTER setting up venv (Optimizes caching)
 COPY . .
 
-# ✅ Install dependencies (Using CPU-compatible TensorFlow)
+# ✅ Install dependencies (Including `requests`)
 RUN pip install --no-cache-dir \
     numpy scipy tensorflow-cpu keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
@@ -36,10 +36,10 @@ RUN pip install --no-cache-dir \
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
 
-# ✅ Create a non-root user for better security & assign proper ownership
+# ✅ Create a non-root user for security & assign ownership
 RUN useradd -m dockeruser && chown -R dockeruser /app
 
-# ✅ Create `fxcbot` script in a system-wide path BEFORE switching users
+# ✅ Create `fxcbot` script globally BEFORE switching users
 RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
     echo 'docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot ghcr.io/loqiseaking69/coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
     chmod +x /usr/local/bin/fxcbot
