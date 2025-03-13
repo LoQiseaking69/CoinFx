@@ -8,20 +8,20 @@ WORKDIR /app
 # ✅ Copy project files into the container
 COPY . .
 
-# ✅ Install required system dependencies (including Tkinter and venv)
+# ✅ Install required system dependencies (including Tkinter, venv, and X11 GUI support)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 git \
+    build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 libxss1 git \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Create and activate a virtual environment inside the container
-RUN python3 -m venv /app/venv
+# ✅ Ensure venv is created correctly with Python 3
+RUN python3 -m venv /app/venv && \
+    /app/venv/bin/pip install --no-cache-dir --upgrade pip
 
 # ✅ Set the virtual environment path
 ENV PATH="/app/venv/bin:$PATH"
 
-# ✅ Upgrade pip and install dependencies inside the venv
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir numpy scipy tensorflow keras pandas \
+# ✅ Install dependencies inside the virtual environment
+RUN pip install --no-cache-dir numpy scipy tensorflow keras pandas \
     scikit-learn websocket-client grpcio protobuf python-dotenv requests && \
     pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
 
@@ -31,5 +31,5 @@ RUN chmod +x /app/main.py
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
 
-# ✅ Define the default command to run the bot
-CMD ["python", "main.py"]
+# ✅ Define the default command to run the bot inside the virtual environment
+CMD ["/app/venv/bin/python", "main.py"]
