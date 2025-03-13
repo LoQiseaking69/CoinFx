@@ -19,16 +19,30 @@ jobs:
 
     - name: 🔄 Auto-fix Dependencies & Update `requirements.txt`
       run: |
+        echo "🛠 Creating Python virtual environment..."
         python3 -m venv venv
         source venv/bin/activate
+
+        echo "🚀 Installing dependencies..."
         pip install --upgrade pip setuptools wheel
         pip install numpy scipy tensorflow keras scikit-learn pandas websocket-client grpcio protobuf python-dotenv || {
-          echo "⚠️ Conflict detected! Fixing dependencies..."
+          echo "⚠️ Dependency conflict detected! Fixing..."
           pip uninstall -y cbpro requests six
           pip install requests>=2.21.0 six>=1.12.0 tensorflow keras numpy scipy scikit-learn pandas websocket-client grpcio protobuf python-dotenv
           pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
         }
-        pip freeze | grep -v "pkg-resources" > requirements.txt  # ✅ Remove pkg-resources conflicts
+
+        echo "🔄 Updating requirements.txt..."
+        pip freeze | grep -v "pkg-resources" > new_requirements.txt
+
+        if ! diff -q new_requirements.txt requirements.txt >/dev/null; then
+          echo "✅ Dependencies updated, saving new requirements.txt..."
+          mv new_requirements.txt requirements.txt
+        else
+          echo "🔄 No changes in dependencies, keeping existing requirements.txt."
+          rm new_requirements.txt
+        fi
+
         deactivate
 
     - name: 🛠 Build & Tag Docker Image
@@ -62,9 +76,18 @@ jobs:
         echo "🔧 Creating fxcbot script..."
         sudo bash -c "cat > /usr/local/bin/fxcbot <<EOF
         #!/bin/bash
-        docker run --rm -it -e DISPLAY=\$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot ghcr.io/$REPO_NAME/coinfx-trading-bot:latest \"\$@\"
+        echo '🔥 Ensuring X11 connections are allowed...'
+        xhost +local:docker
+        docker run --rm -it \\
+          -e DISPLAY=\$DISPLAY \\
+          -e XAUTHORITY=/tmp/.docker.xauth \\
+          -v /tmp/.X11-unix:/tmp/.X11-unix \\
+          -v /tmp/.docker.xauth:/tmp/.docker.xauth \\
+          --name coinfx-trading-bot \\
+          ghcr.io/$REPO_NAME/coinfx-trading-bot:latest \"\$@\"
         EOF"
         sudo chmod +x /usr/local/bin/fxcbot
+        echo "✅ fxcbot script installed successfully!"
 
     - name: 📤 Upload `fxcbot` as an Artifact
       uses: actions/upload-artifact@v4
