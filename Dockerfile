@@ -8,9 +8,10 @@ WORKDIR /app
 # ✅ Copy project files into the container
 COPY . .
 
-# ✅ Install required system dependencies (including Tkinter, venv, and X11 GUI support)
+# ✅ Install required system dependencies (including Tkinter, venv, and WebSocket support)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 libxss1 git \
+    build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
+    libxss1 git curl unzip libssl-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ✅ Ensure venv is created correctly with Python 3
@@ -20,10 +21,11 @@ RUN python3 -m venv /app/venv && \
 # ✅ Set the virtual environment path
 ENV PATH="/app/venv/bin:$PATH"
 
-# ✅ Install dependencies inside the virtual environment
+# ✅ Install all dependencies inside the virtual environment
 RUN pip install --no-cache-dir numpy scipy tensorflow keras pandas \
-    scikit-learn websocket-client grpcio protobuf python-dotenv requests && \
-    pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
+    scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
+    cbpro ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
+    && pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
