@@ -41,16 +41,14 @@ RUN echo "xhost +local:docker" >> /etc/bash.bashrc
 
 # ✅ Create a non-root user for better security
 RUN useradd -m dockeruser && chown -R dockeruser /app
+
+# ✅ Step 1: Create the fxcbot script in the system-wide path BEFORE switching users
+RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
+    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot coinfx-trading-bot "$@"' >> /usr/local/bin/fxcbot && \
+    chmod +x /usr/local/bin/fxcbot
+
+# ✅ Switch to non-root user
 USER dockeruser
-
-# ✅ Step 1: Create the fxcbot script in the user's home directory
-RUN mkdir -p /home/dockeruser/bin && \
-    echo '#!/bin/bash' > /home/dockeruser/bin/fxcbot && \
-    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot coinfx-trading-bot "$@"' >> /home/dockeruser/bin/fxcbot && \
-    chmod +x /home/dockeruser/bin/fxcbot
-
-# ✅ Step 2: Add the script directory to the user's PATH
-ENV PATH="/home/dockeruser/bin:$PATH"
 
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
