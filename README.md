@@ -1,20 +1,20 @@
 # **🚀 CoinFx: AI-Powered Genetic Algorithm Trading Bot**
-**CoinFx** is a **fully automated trading system** that integrates **Genetic Algorithm (GA) optimization** and **LSTM-based AI prediction** to maximize trading performance. It supports **live trading** on **OANDA (Forex) and Coinbase (Crypto)** while also offering **backtesting and real-time market analysis**.
+**CoinFx** is an **AI-driven, fully automated trading system** that integrates **Genetic Algorithm (GA) optimization** with **LSTM-based AI prediction** to enhance trading efficiency. The bot operates on both **OANDA (Forex)** and **Coinbase (Crypto)**, supporting **live trading, backtesting, and real-time market analysis**.
 
 ---
 
 ## **🌟 Key Features**
-✔ **AI & Genetic Algorithm Hybrid** – Combines **AI price prediction** with **GA strategy evolution**.  
+✔ **Hybrid AI & Genetic Algorithm** – Merges **LSTM-based AI predictions** with **GA strategy evolution**.  
 ✔ **Live Trading Execution** – Supports real-time trading on:  
    - **OANDA (Forex)**  
    - **Coinbase (Crypto)**  
-✔ **Backtesting Engine** – Simulates trading performance and calculates key metrics:  
+✔ **Backtesting Engine** – Simulates historical performance, calculating:  
    - **Final Capital**  
-   - **Sharpe Ratio**  
-   - **Max Drawdown**  
-   - **Profit Factor**  
-✔ **Risk & Performance Management** – Implements **stop-loss, take-profit, and position sizing**.  
-✔ **Adaptive Trading Strategies** – Supports multiple trading signals:  
+   - **Sharpe Ratio** (Risk-Adjusted Return)  
+   - **Max Drawdown** (Worst Peak-to-Trough Loss)  
+   - **Profit Factor** (Total Gains / Total Losses)  
+✔ **Advanced Risk & Performance Management** – Implements **stop-loss, take-profit, position sizing, and cooldown periods**.  
+✔ **Adaptive Trading Strategies** – Supports various decision models:  
    - **Binary Signals** – Buy/Sell only.  
    - **Continuous Signals** – Buy/Sell with position sizing.  
    - **Multi-Class Signals** – Hold/Buy/Sell.  
@@ -34,7 +34,7 @@ Ensure **Docker** is installed:
 ```sh
 sudo apt update && sudo apt install docker.io -y
 ```
-Then, check if Docker is running:
+Verify that Docker is running:
 ```sh
 docker --version
 ```
@@ -48,30 +48,29 @@ docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot
 ---
 
 ## **📌 One-Command Execution (`fxcbot`)**
-After deployment, **you can run the bot anywhere** with:
+Once installed, **run the bot from anywhere** with:
 ```sh
 fxcbot
 ```
 
-#### **🔹 Install `fxcbot` Locally**
-Run the following to create a **global shell command**:
+### **🔹 Install `fxcbot` Locally**
+Set up a **global shell command**:
 ```sh
 echo "#!/bin/bash" > fxcbot
 echo "docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot "\$@"" >> fxcbot
 chmod +x fxcbot
 sudo mv fxcbot /usr/local/bin/
 ```
-
-Now, just type:
+Now, simply run:
 ```sh
 fxcbot
 ```
-**The bot will launch automatically inside Docker.** ✅
+✅ **The bot will launch automatically inside Docker.**
 
 ---
 
 ## **🚀 Automated Deployment with GitHub Actions**
-Every time you **push updates to GitHub**, the bot **rebuilds automatically**.  
+Every push to **GitHub** triggers an **automated build & deployment**.
 
 ### **📌 Set Up GitHub Actions**
 1️⃣ Navigate to `.github/workflows/`  
