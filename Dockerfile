@@ -14,7 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-tk libxcb1 tk-dev libxt6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Upgrade pip and install dependencies efficiently
+# ✅ Create and activate a virtual environment inside the container
+RUN python -m venv /app/venv
+ENV PATH="/app/venv/bin:$PATH"
+
+# ✅ Upgrade pip and install dependencies efficiently inside the virtual environment
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir numpy scipy tensorflow keras pandas \
     scikit-learn websocket-client grpcio protobuf python-dotenv requests && \
@@ -26,5 +30,5 @@ RUN chmod +x /app/main.py
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
 
-# ✅ Define the default command to run the bot
-CMD ["python", "main.py"]
+# ✅ Define the default command to run the bot inside the virtual environment
+CMD ["/app/venv/bin/python", "main.py"]
