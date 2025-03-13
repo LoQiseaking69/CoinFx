@@ -33,8 +33,9 @@ jobs:
 
     - name: 🛠 Build & Tag Docker Image
       run: |
+        REPO_NAME=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         docker build --no-cache -t coinfx-trading-bot:latest .
-        docker tag coinfx-trading-bot:latest ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest
+        docker tag coinfx-trading-bot:latest ghcr.io/$REPO_NAME/coinfx-trading-bot:latest
 
     - name: 🧪 Run Docker Sanity Check
       run: docker run --rm coinfx-trading-bot:latest python -c "print('✅ Docker Sanity Check Passed')"
@@ -43,7 +44,9 @@ jobs:
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: 📤 Push Docker Image to GHCR
-      run: docker push ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest
+      run: |
+        REPO_NAME=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        docker push ghcr.io/$REPO_NAME/coinfx-trading-bot:latest
 
     - name: 🚀 Create `fxcbot` Executable
       run: |
