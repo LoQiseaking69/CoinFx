@@ -35,14 +35,15 @@ jobs:
       run: |
         REPO_NAME=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         IMAGE_TAG="ghcr.io/$REPO_NAME/coinfx-trading-bot:latest"
-        
+
         echo "🚀 Building Docker Image: $IMAGE_TAG"
         docker build --no-cache -t $IMAGE_TAG .
 
     - name: 🧪 Run Docker Sanity Check
       run: |
+        REPO_NAME=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         echo "🔍 Running Docker Sanity Check..."
-        docker run --rm ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest python -c "print('✅ Docker Sanity Check Passed')"
+        docker run --rm ghcr.io/$REPO_NAME/coinfx-trading-bot:latest python -c "print('✅ Docker Sanity Check Passed')"
 
     - name: 🔑 Login to GitHub Container Registry (GHCR)
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -57,11 +58,12 @@ jobs:
 
     - name: 🚀 Create & Deploy `fxcbot` Executable
       run: |
+        REPO_NAME=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         echo "🔧 Creating fxcbot script..."
-        sudo bash -c 'cat > /usr/local/bin/fxcbot <<EOF
+        sudo bash -c "cat > /usr/local/bin/fxcbot <<EOF
         #!/bin/bash
-        docker run --rm -it -e DISPLAY=\$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest "\$@"
-        EOF'
+        docker run --rm -it -e DISPLAY=\$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot ghcr.io/$REPO_NAME/coinfx-trading-bot:latest \"\$@\"
+        EOF"
         sudo chmod +x /usr/local/bin/fxcbot
 
     - name: 📤 Upload `fxcbot` as an Artifact
