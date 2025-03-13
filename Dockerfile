@@ -21,10 +21,12 @@ RUN python3 -m venv /app/venv && \
 # ✅ Set the virtual environment path
 ENV PATH="/app/venv/bin:$PATH"
 
-# ✅ Install all dependencies inside the virtual environment
-RUN pip install --no-cache-dir numpy scipy tensorflow keras pandas \
+# ✅ Install dependencies with conflict resolution
+RUN pip install --no-cache-dir --use-deprecated=legacy-resolver \
+    numpy scipy tensorflow keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
-    cbpro ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
+    ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
+    && pip uninstall -y six && pip install six>=1.12.0 \
     && pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
 
 # ✅ Set correct permissions for execution
