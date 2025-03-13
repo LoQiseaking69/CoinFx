@@ -1,4 +1,4 @@
-name: CoinFx Bot Docker 🚀 (Self-fixing)
+name: CoinFx Bot Docker 🚀 (Self-fixing & Deployment)
 
 on:
   push:
@@ -31,16 +31,24 @@ jobs:
         pip freeze | grep -v "pkg-resources" > requirements.txt  # ✅ Remove pkg-resources conflicts
         deactivate
 
-    - name: 🛠 Build Docker Image
-      run: docker build --no-cache -t coinfx-trading-bot:latest .
+    - name: 🛠 Build & Tag Docker Image
+      run: |
+        docker build --no-cache -t coinfx-trading-bot:latest .
+        docker tag coinfx-trading-bot:latest ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest
 
     - name: 🧪 Run Docker Sanity Check
       run: docker run --rm coinfx-trading-bot:latest python -c "print('✅ Docker Sanity Check Passed')"
 
+    - name: 🔑 Login to GitHub Container Registry (GHCR)
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: 📤 Push Docker Image to GHCR
+      run: docker push ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest
+
     - name: 🚀 Create `fxcbot` Executable
       run: |
         echo '#!/bin/bash' | sudo tee /usr/local/bin/fxcbot
-        echo 'docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot "$@"' | sudo tee -a /usr/local/bin/fxcbot
+        echo 'docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot ghcr.io/${{ github.repository_owner }}/coinfx-trading-bot:latest "$@"' | sudo tee -a /usr/local/bin/fxcbot
         sudo chmod +x /usr/local/bin/fxcbot
 
     - name: 📤 Upload `fxcbot` Artifact
