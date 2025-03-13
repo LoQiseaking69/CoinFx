@@ -1,8 +1,8 @@
-# ✅ Use a lightweight, optimized Python 3.10 base image (more stable & efficient)
+# ✅ Use a lightweight, optimized Python 3.10 base image
 FROM python:3.10-slim
 
 # ✅ Set environment variables for non-buffered output & correct timezone
-ENV PYTHONUNBUFFERED=1 TZ=UTC
+ENV PYTHONUNBUFFERED=1 TZ=UTC DISPLAY=:0
 
 # ✅ Set working directory
 WORKDIR /app
@@ -10,10 +10,11 @@ WORKDIR /app
 # ✅ Copy project files into the container
 COPY . .
 
-# ✅ Install required system dependencies (Tkinter, SSL, WebSockets, Git, etc.)
+# ✅ Install required system dependencies (GUI, SSL, WebSockets, Git, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
-    libxss1 git curl unzip libssl-dev libffi-dev libsqlite3-dev \
+    libxss1 libgl1-mesa-glx libglib2.0-0 x11-apps xauth \
+    git curl unzip libssl-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ✅ Ensure venv is correctly created & upgraded
@@ -34,6 +35,18 @@ RUN pip install --no-cache-dir --use-deprecated=legacy-resolver \
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
+
+# ✅ Allow X server access for GUI
+RUN echo "xhost +local:docker" >> /etc/bash.bashrc
+
+# ✅ Create a non-root user for better security
+RUN useradd -m dockeruser && chown -R dockeruser /app
+USER dockeruser
+
+# ✅ Step 1: Create the fxcbot script
+RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
+    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --name coinfx-trading-bot coinfx-trading-bot "$@"' >> /usr/local/bin/fxcbot && \
+    chmod +x /usr/local/bin/fxcbot
 
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
