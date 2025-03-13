@@ -13,7 +13,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # ✅ Install required system dependencies (Minimal GUI & Essentials)
-#    Replace `mcookie` with `util-linux`, which provides the `mcookie` command on Debian 12.
+#    Replace `mcookie` with `util-linux` on Debian 12 for `mcookie`.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
     libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
@@ -21,31 +21,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Create & verify virtual environment with `pip`
-RUN python3 -m venv /app/venv \
-    && /app/venv/bin/python -m ensurepip --default-pip \
-    && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# ✅ Double-check pip is installed in the venv
-RUN ls -l /app/venv/bin && /app/venv/bin/python -m pip --version
-
-# ✅ Copy project files after setting up venv (Optimizes caching)
+# ✅ Copy project files (So we can install dependencies from them)
 COPY . .
 
-# ✅ Install dependencies inside the virtual environment
-RUN /app/venv/bin/python -m pip install --no-cache-dir \
+# ✅ Create & verify venv, then install all dependencies in one layer
+RUN python3 -m venv /app/venv \
+ && /app/venv/bin/python -m ensurepip --default-pip \
+ && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && /app/venv/bin/python -m pip install --no-cache-dir \
     numpy scipy tensorflow-cpu keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
     ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-    && /app/venv/bin/python -m pip uninstall -y six \
-    && /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0 \
-    && /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
-    && rm -rf ~/.cache/pip  # ✅ Reduce image size by clearing pip cache
+ && /app/venv/bin/python -m pip uninstall -y six \
+ && /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0 \
+ && /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
+ && rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
 
-# ✅ Create a non-root user for security
+# ✅ Create a non-root user for security & own the app directory
 RUN useradd -m dockeruser && chown -R dockeruser /app
 
 # ✅ Inject X11 GUI setup & authentication into the startup process
