@@ -10,33 +10,33 @@ ENV PYTHONUNBUFFERED=1 \
 # ✅ Set working directory
 WORKDIR /app
 
-# ✅ Install required system dependencies (Minimal & Essential)
+# ✅ Install required system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
     libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Ensure virtual environment is correctly created & activated
+# ✅ Create a virtual environment & upgrade pip
 RUN python3 -m venv /app/venv && \
     /app/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# ✅ Copy project files AFTER setting up venv (Optimizes caching)
+# ✅ Copy project files after setting up venv (Optimizes caching)
 COPY . .
 
-# ✅ Install dependencies (Including `requests`)
-RUN pip install --no-cache-dir \
+# ✅ Install dependencies inside the virtual environment
+RUN /app/venv/bin/pip install --no-cache-dir \
     numpy scipy tensorflow-cpu keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
     ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-    && pip uninstall -y six && pip install --no-cache-dir six>=1.12.0 \
-    && pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
+    && /app/venv/bin/pip uninstall -y six && /app/venv/bin/pip install --no-cache-dir six>=1.12.0 \
+    && /app/venv/bin/pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
     && rm -rf ~/.cache/pip  # ✅ Reduce image size by clearing pip cache
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
 
-# ✅ Create a non-root user for security & assign ownership
+# ✅ Create a non-root user for security
 RUN useradd -m dockeruser && chown -R dockeruser /app
 
 # ✅ Create `fxcbot` script globally BEFORE switching users
@@ -53,5 +53,5 @@ USER dockeruser
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
 
-# ✅ Define the default command to run the bot inside the virtual environment
-CMD ["python", "main.py"]
+# ✅ Run inside the virtual environment to ensure dependencies are available
+CMD ["/app/venv/bin/python", "main.py"]
