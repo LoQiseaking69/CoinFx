@@ -4,10 +4,10 @@ import logging
 import time
 import threading
 
-# ✅ Securely Load Environment Variables (Ensures they persist inside Docker)
+# ✅ Load Environment Variables Securely
 dotenv.load_dotenv(override=True)
 
-# ✅ Logging Configuration (Ensures logs directory exists)
+# ✅ Logging Configuration
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -19,22 +19,26 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# ✅ Define Required & Optional API Credentials (Stored in Memory, Never Logged)
+# ✅ Ensure logger function is correctly defined
+def get_logger():
+    """Returns the global logger instance."""
+    return logger
+
+# ✅ Define Required & Optional API Credentials
 REQUIRED_ENV_VARS = {
-    "OANDA_ACCESS_TOKEN": "OANDA_API_KEY",  # Ensures either variable works
+    "OANDA_ACCESS_TOKEN": "OANDA_API_KEY",  # Fallback key
     "OANDA_ACCOUNT_ID": None,
 }
 OPTIONAL_ENV_VARS = ["COINBASE_API_KEY", "COINBASE_API_SECRET", "COINBASE_API_PASSPHRASE"]
 
-
 def load_env():
-    """Loads environment variables and validates them without exposing sensitive information."""
+    """Loads and validates environment variables securely."""
     dotenv.load_dotenv(override=True)
     
     env_values = {}
     missing_vars = []
 
-    # ✅ Ensure Required Variables Are Set
+    # ✅ Validate Required Variables
     for key, fallback in REQUIRED_ENV_VARS.items():
         env_values[key] = os.getenv(key) or (os.getenv(fallback) if fallback else None)
         if not env_values[key]:
@@ -42,30 +46,30 @@ def load_env():
 
     if missing_vars:
         logger.critical(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
-        raise SystemExit(f"❌ Critical Configuration Error: {', '.join(missing_vars)}")
+        raise SystemExit(f"❌ Configuration Error: {', '.join(missing_vars)}")
 
-    # ✅ Validate Optional Variables (Warn If Partially Missing)
-    optional_values = {var: os.getenv(var) for var in OPTIONAL_ENV_VARS}
+    # ✅ Validate Optional Variables
+    optional_values = {var: os.getenv(var, "").strip() for var in OPTIONAL_ENV_VARS}
     if any(optional_values.values()):
         missing_optional = [var for var, value in optional_values.items() if not value]
         if missing_optional:
-            logger.warning(f"⚠️ Missing Coinbase API credentials: {', '.join(missing_optional)}")
+            logger.warning(f"⚠️ Missing optional API credentials: {', '.join(missing_optional)}")
 
     logger.info("✅ Environment variables loaded successfully.")
-    
     return {**env_values, **optional_values}  # Merge required & optional variables
 
-
-# ✅ Initial Load (Stored Securely in Memory)
+# ✅ Load Environment Variables
 env = load_env()
 
-# ✅ Assign API Credentials (Memory Only, Never Logged)
+# ✅ Secure API Credentials
 OANDA_ACCESS_TOKEN, OANDA_ACCOUNT_ID = env["OANDA_ACCESS_TOKEN"], env["OANDA_ACCOUNT_ID"]
 COINBASE_API_KEY, COINBASE_API_SECRET, COINBASE_API_PASSPHRASE = (
     env.get("COINBASE_API_KEY"), env.get("COINBASE_API_SECRET"), env.get("COINBASE_API_PASSPHRASE")
 )
 
-# ✅ Trading & Risk Parameters (Safe Defaults Applied)
+# ✅ Define Trading & Risk Management Configurations
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 TRADING_CONFIG = {
     "LOOKBACK": int(os.getenv("LOOKBACK", 50)),
     "STOP_LOSS_PERCENT": float(os.getenv("STOP_LOSS_PERCENT", 0.02)),
@@ -73,10 +77,10 @@ TRADING_CONFIG = {
     "LEARNING_RATE": float(os.getenv("LEARNING_RATE", 0.001)),
     "EPOCHS": int(os.getenv("EPOCHS", 5)),
     "BATCH_SIZE": int(os.getenv("BATCH_SIZE", 16)),
-    "SCALER_FILE": os.getenv("SCALER_FILE", "scaler.pkl"),
-    "MODEL_FILE": os.getenv("MODEL_FILE", "lstm_model.h5"),
-    "DB_FILE": os.getenv("DB_FILE", "trades.db"),
-    "TRADE_LOG_FILE": os.getenv("TRADE_LOG_FILE", "trade_log.csv"),
+    "SCALER_FILE": os.getenv("SCALER_FILE", os.path.join(BASE_DIR, "scaler.pkl")),
+    "MODEL_FILE": os.getenv("MODEL_FILE", os.path.join(BASE_DIR, "lstm_model.h5")),
+    "DB_FILE": os.getenv("DB_FILE", os.path.join(BASE_DIR, "trades.db")),
+    "TRADE_LOG_FILE": os.getenv("TRADE_LOG_FILE", os.path.join(BASE_DIR, "trade_log.csv")),
 }
 
 RISK_MANAGEMENT = {
@@ -85,25 +89,28 @@ RISK_MANAGEMENT = {
     "POSITION_COOLDOWN": int(os.getenv("POSITION_COOLDOWN", 60)),
 }
 
-# ✅ Safe Environment Reload Function
+# ✅ Ensure Required Files Exist
+for file_path in [TRADING_CONFIG["SCALER_FILE"], TRADING_CONFIG["MODEL_FILE"], TRADING_CONFIG["DB_FILE"], TRADING_CONFIG["TRADE_LOG_FILE"]]:
+    if not os.path.exists(file_path):
+        open(file_path, "a").close()  # Create empty files if missing
+
+# ✅ Safe Environment Reload
 def reload_env():
-    """Securely reloads environment variables without exposing sensitive information."""
+    """Securely reloads environment variables."""
     global env, OANDA_ACCESS_TOKEN, OANDA_ACCOUNT_ID, COINBASE_API_KEY, COINBASE_API_SECRET, COINBASE_API_PASSPHRASE
     env = load_env()
     OANDA_ACCESS_TOKEN, OANDA_ACCOUNT_ID = env["OANDA_ACCESS_TOKEN"], env["OANDA_ACCOUNT_ID"]
     COINBASE_API_KEY, COINBASE_API_SECRET, COINBASE_API_PASSPHRASE = (
         env.get("COINBASE_API_KEY"), env.get("COINBASE_API_SECRET"), env.get("COINBASE_API_PASSPHRASE")
     )
-    logger.info("🔄 Environment variables reloaded securely.")
+    logger.info("🔄 Environment variables reloaded successfully.")
 
-
-# ✅ Automatic Environment Reload (Runs Securely in Background)
+# ✅ Automatic Environment Reload (Runs in Background)
 def auto_reload_env(interval=60):
-    """Reloads environment variables every `interval` seconds securely."""
+    """Periodically reloads environment variables in the background."""
     while True:
         reload_env()
         time.sleep(interval)
 
-
-# ✅ Start Background Thread to Refresh Environment Variables Securely
+# ✅ Start Background Thread for Auto-Reloading
 threading.Thread(target=auto_reload_env, daemon=True).start()
