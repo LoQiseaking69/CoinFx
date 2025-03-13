@@ -4,10 +4,10 @@ import logging
 import time
 import threading
 
-# ✅ Load environment variables securely
+# ✅ Securely Load Environment Variables (Ensures they persist inside Docker)
 dotenv.load_dotenv(override=True)
 
-# ✅ Logging Configuration (Ensure logs directory exists)
+# ✅ Logging Configuration (Ensures logs directory exists)
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -19,44 +19,53 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# ✅ Define Required & Optional API Credentials (Stored in Memory, Not Logged)
-REQUIRED_ENV_VARS = ["OANDA_ACCESS_TOKEN", "OANDA_ACCOUNT_ID"]
+# ✅ Define Required & Optional API Credentials (Stored in Memory, Never Logged)
+REQUIRED_ENV_VARS = {
+    "OANDA_ACCESS_TOKEN": "OANDA_API_KEY",  # Ensures either variable works
+    "OANDA_ACCOUNT_ID": None,
+}
 OPTIONAL_ENV_VARS = ["COINBASE_API_KEY", "COINBASE_API_SECRET", "COINBASE_API_PASSPHRASE"]
 
 
 def load_env():
     """Loads environment variables and validates them without exposing sensitive information."""
     dotenv.load_dotenv(override=True)
-    env_values = {var: os.getenv(var) for var in REQUIRED_ENV_VARS + OPTIONAL_ENV_VARS}
+    
+    env_values = {}
+    missing_vars = []
 
-    # 🚨 Validate Required Variables (Critical Failure if Missing)
-    missing_vars = [var for var in REQUIRED_ENV_VARS if not env_values[var]]
+    # ✅ Ensure Required Variables Are Set
+    for key, fallback in REQUIRED_ENV_VARS.items():
+        env_values[key] = os.getenv(key) or (os.getenv(fallback) if fallback else None)
+        if not env_values[key]:
+            missing_vars.append(key)
+
     if missing_vars:
-        logger.critical("❌ Missing required environment variables. Check your `.env` file or container settings.")
+        logger.critical(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
         raise SystemExit(f"❌ Critical Configuration Error: {', '.join(missing_vars)}")
 
-    # ✅ Log partial Coinbase API config issues **without exposing secrets**
-    if any(env_values[var] for var in OPTIONAL_ENV_VARS):
-        missing_optional = [var for var in OPTIONAL_ENV_VARS if not env_values[var]]
+    # ✅ Validate Optional Variables (Warn If Partially Missing)
+    optional_values = {var: os.getenv(var) for var in OPTIONAL_ENV_VARS}
+    if any(optional_values.values()):
+        missing_optional = [var for var, value in optional_values.items() if not value]
         if missing_optional:
-            logger.warning("⚠️ Some Coinbase API credentials are missing. Check your `.env` settings.")
+            logger.warning(f"⚠️ Missing Coinbase API credentials: {', '.join(missing_optional)}")
 
     logger.info("✅ Environment variables loaded successfully.")
     
-    # 🚨 NEVER log or print sensitive values for security reasons
-    return env_values
+    return {**env_values, **optional_values}  # Merge required & optional variables
 
 
-# ✅ Initial Load (Stored in Memory, Not Logged)
+# ✅ Initial Load (Stored Securely in Memory)
 env = load_env()
 
-# ✅ Assign API Credentials (Kept in Memory Only)
+# ✅ Assign API Credentials (Memory Only, Never Logged)
 OANDA_ACCESS_TOKEN, OANDA_ACCOUNT_ID = env["OANDA_ACCESS_TOKEN"], env["OANDA_ACCOUNT_ID"]
 COINBASE_API_KEY, COINBASE_API_SECRET, COINBASE_API_PASSPHRASE = (
     env.get("COINBASE_API_KEY"), env.get("COINBASE_API_SECRET"), env.get("COINBASE_API_PASSPHRASE")
 )
 
-# ✅ Trading & Risk Parameters (Defaults are provided for safety)
+# ✅ Trading & Risk Parameters (Safe Defaults Applied)
 TRADING_CONFIG = {
     "LOOKBACK": int(os.getenv("LOOKBACK", 50)),
     "STOP_LOSS_PERCENT": float(os.getenv("STOP_LOSS_PERCENT", 0.02)),
@@ -87,12 +96,14 @@ def reload_env():
     )
     logger.info("🔄 Environment variables reloaded securely.")
 
-# ✅ Automatic Environment Reload (Runs in the Background)
+
+# ✅ Automatic Environment Reload (Runs Securely in Background)
 def auto_reload_env(interval=60):
     """Reloads environment variables every `interval` seconds securely."""
     while True:
         reload_env()
         time.sleep(interval)
 
-# ✅ Start a background thread to refresh env variables securely
+
+# ✅ Start Background Thread to Refresh Environment Variables Securely
 threading.Thread(target=auto_reload_env, daemon=True).start()
