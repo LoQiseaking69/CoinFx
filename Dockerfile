@@ -18,10 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Ensure virtual environment is correctly created & `pip` is available
+# ✅ Ensure virtual environment is correctly created & `pip` is installed
 RUN python3 -m venv ${VENV_PATH} && \
     ${VENV_PATH}/bin/python -m ensurepip --default-pip && \
     ${VENV_PATH}/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# ✅ Verify pip installation
+RUN test -f "${VENV_PATH}/bin/pip" && echo "✅ pip installed successfully" || (echo "❌ pip installation failed!" && exit 1)
 
 # ✅ Copy project files after setting up venv (Optimizes caching)
 COPY . .
