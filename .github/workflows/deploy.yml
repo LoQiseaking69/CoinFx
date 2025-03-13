@@ -11,12 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: 🛠 Checkout Code
+      uses: actions/checkout@v4
 
     - name: 🐋 Setup Docker
       uses: docker/setup-buildx-action@v3
 
-    - name: 🐍 Auto-fix Dependencies & Update requirements.txt
+    - name: 🔄 Auto-fix Dependencies & Update `requirements.txt`
       run: |
         python -m venv venv && source venv/bin/activate
         pip install --upgrade pip
@@ -29,13 +30,11 @@ jobs:
         pip freeze > requirements.txt
         deactivate
 
-    - name: 🐋 Build Docker Image
-      run: |
-        docker build -t coinfx-trading-bot:latest .
+    - name: 🛠 Build Docker Image
+      run: docker build -t coinfx-trading-bot:latest .
 
     - name: 🧪 Sanity Check Docker Image
-      run: |
-        docker run --rm coinfx-trading-bot:latest python -c "print('✅ Docker Sanity Check Passed')"
+      run: docker run --rm coinfx-trading-bot:latest python -c "print('✅ Docker Sanity Check Passed')"
 
     - name: 🚀 Create fxcbot Executable
       run: |
