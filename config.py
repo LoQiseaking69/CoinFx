@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 REQUIRED_ENV_VARS = ["OANDA_ACCESS_TOKEN", "OANDA_ACCOUNT_ID"]
 OPTIONAL_ENV_VARS = ["COINBASE_API_KEY", "COINBASE_API_SECRET", "COINBASE_API_PASSPHRASE"]
 
+
 def load_env():
     """Loads environment variables and validates them without exposing sensitive information."""
     dotenv.load_dotenv(override=True)
@@ -44,6 +45,7 @@ def load_env():
     
     # 🚨 NEVER log or print sensitive values for security reasons
     return env_values
+
 
 # ✅ Initial Load (Stored in Memory, Not Logged)
 env = load_env()
