@@ -53,27 +53,6 @@ After installation, **run the bot anywhere** with:
 fxcbot
 ```
 
-### 🔹 **Install `fxcbot` Locally**
-Create a **global shell command** for ease of use:
-```sh
-# ✅ Step 1: Create the fxcbot script
-echo '#!/bin/bash' > fxcbot
-echo 'docker run --rm -it --name coinfx-trading-bot coinfx-trading-bot "$@"' >> fxcbot
-
-# ✅ Step 2: Make the script executable
-chmod +x fxcbot
-
-# ✅ Step 3: Move it to a system-wide path (requires sudo)
-sudo mv fxcbot /usr/local/bin/
-
-# ✅ Step 4: Verify that the command works
-which fxcbot
-
-```
-Now, simply type:
-```sh
-fxcbot
-```
 ✅ **The bot will automatically launch inside Docker.**
 
 ---
