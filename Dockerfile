@@ -13,11 +13,12 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # ✅ Install required system dependencies (Minimal GUI & Essentials)
+#    Replace `mcookie` with `util-linux`, which provides the `mcookie` command on Debian 12.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
     libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
     dbus-x11 xdg-utils libxkbcommon-x11-0 \
-    git curl unzip libssl-dev libffi-dev libsqlite3-dev mcookie \
+    git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # ✅ Create & verify virtual environment with `pip`
