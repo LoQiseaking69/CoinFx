@@ -29,9 +29,6 @@ jobs:
         pip freeze > requirements.txt
         deactivate
 
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
     - name: 🐋 Build Docker Image
       run: |
         docker build -t coinfx-trading-bot:latest .
