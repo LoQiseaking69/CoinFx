@@ -8,9 +8,10 @@ WORKDIR /app
 # Copy all files
 COPY . .
 
-# Install system dependencies
+# Install required system dependencies (including Tkinter)
 RUN apt-get update && apt-get install -y \
     build-essential libopenblas-dev liblapack-dev libx11-6 git \
+    python3-tk libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install dependencies
