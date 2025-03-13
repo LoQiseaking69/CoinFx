@@ -5,6 +5,7 @@ FROM python:3.10-slim
 ENV PYTHONUNBUFFERED=1 \
     TZ=UTC \
     DISPLAY=:0 \
+    VENV_PATH="/app/venv" \
     PATH="/app/venv/bin:$PATH"
 
 # ✅ Set working directory
@@ -17,20 +18,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Create a virtual environment & upgrade pip
-RUN python3 -m venv /app/venv && \
-    /app/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
+# ✅ Ensure virtual environment is correctly created & pip is available
+RUN python3 -m venv ${VENV_PATH} && \
+    ${VENV_PATH}/bin/python -m ensurepip && \
+    ${VENV_PATH}/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ✅ Copy project files after setting up venv (Optimizes caching)
 COPY . .
 
 # ✅ Install dependencies inside the virtual environment
-RUN /app/venv/bin/pip install --no-cache-dir \
+RUN ${VENV_PATH}/bin/python -m pip install --no-cache-dir \
     numpy scipy tensorflow-cpu keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
     ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-    && /app/venv/bin/pip uninstall -y six && /app/venv/bin/pip install --no-cache-dir six>=1.12.0 \
-    && /app/venv/bin/pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
+    && ${VENV_PATH}/bin/python -m pip uninstall -y six && ${VENV_PATH}/bin/python -m pip install --no-cache-dir six>=1.12.0 \
+    && ${VENV_PATH}/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
     && rm -rf ~/.cache/pip  # ✅ Reduce image size by clearing pip cache
 
 # ✅ Set correct permissions for execution
@@ -54,4 +56,4 @@ USER dockeruser
 EXPOSE 5000
 
 # ✅ Run inside the virtual environment to ensure dependencies are available
-CMD ["/app/venv/bin/python", "main.py"]
+CMD ["python", "main.py"]
