@@ -18,29 +18,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
     dbus-x11 xdg-utils libxkbcommon-x11-0 \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime \
-    && rm -rf /var/lib/apt/lists/*
+    xvfb && rm -rf /var/lib/apt/lists/*
 
 # ✅ Copy project files (So we can install dependencies from them)
 COPY . .
 
 # ✅ Create & verify venv, then install all dependencies in one layer
 RUN python3 -m venv /app/venv \
- && /app/venv/bin/python -m ensurepip --default-pip \
- && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel
-
-RUN /app/venv/bin/python -m pip install --no-cache-dir \
+    && /app/venv/bin/python -m ensurepip --default-pip \
+    && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && /app/venv/bin/python -m pip install --no-cache-dir \
     numpy scipy tensorflow-cpu keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
     ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-    oandapyV20
-
-RUN /app/venv/bin/python -m pip uninstall -y six
-
-RUN /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0
-
-RUN /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
-
-RUN rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
+    oandapyV20 \
+    && /app/venv/bin/python -m pip uninstall -y six \
+    && /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0 \
+    && /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
+    && rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
@@ -76,5 +71,5 @@ USER dockeruser
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
 
-# ✅ Single command execution for GUI setup & bot launch
-ENTRYPOINT ["/bin/bash", "/startup.sh"]
+# ✅ Use Xvfb for headless environments (e.g., CI/CD) to simulate display
+ENTRYPOINT ["/bin/bash", "-c", "Xvfb :0 -screen 0 1024x768x16 & export DISPLAY=:0 && /startup.sh"]
