@@ -53,7 +53,8 @@ RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'echo "🖥️ Setting up X11 authentication..."' >> /startup.sh && \
     echo 'touch /tmp/.docker.xauth' >> /startup.sh && \
     echo 'xauth generate "$DISPLAY" . trusted' >> /startup.sh && \
-    echo 'xauth add "$DISPLAY" . $(uuidgen)' >> /startup.sh && \
+    echo 'xauth list' >> /startup.sh && \
+    echo 'xauth add "$DISPLAY" . $(xauth list | awk '"'"'{print $3}'"'"')' >> /startup.sh && \
     echo 'chown dockeruser:dockeruser /tmp/.docker.xauth' >> /startup.sh && \
     echo 'echo "🚀 Launching application..."' >> /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
