@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ✅ Create /tmp/.X11-unix directory with proper permissions (for Xvfb)
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-# ✅ Copy project files (So we can install dependencies from them)
+# ✅ Copy project files
 COPY . .
 
 # ✅ Create & verify venv, then install all dependencies in one layer
@@ -46,7 +46,7 @@ RUN chmod +x /app/main.py
 # ✅ Create a non-root user for security & set permissions
 RUN useradd -m dockeruser && chown -R dockeruser /app /app/venv
 
-# ✅ Inject X11 GUI setup & authentication into the startup process
+# ✅ Create startup script for launching the application with X11 authentication
 RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'echo "🔥 Allowing X11 connections..."' >> /startup.sh && \
     echo 'xhost +local:docker' >> /startup.sh && \
@@ -59,20 +59,31 @@ RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
     chmod +x /startup.sh
 
-# ✅ Create `fxcbot` script globally BEFORE switching users
+# ✅ Create global fxcbot script BEFORE switching users
 RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
     echo 'xhost +local:docker' | tee -a /etc/bash.bashrc && \
     echo 'docker run --rm -it -e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.docker.xauth -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth --name coinfx-trading-bot coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
     chmod +x /usr/local/bin/fxcbot
 
-# ✅ Ensure `xhost` commands persist for GUI visibility
+# ✅ Ensure xhost commands persist for GUI visibility
 RUN echo "xhost +local:docker" >> /etc/bash.bashrc
+
+# ✅ Create an entrypoint script to support command overrides (for sanity checks)
+RUN echo '#!/bin/bash' > /entrypoint.sh && \
+    echo 'if [ "$#" -gt 0 ]; then' >> /entrypoint.sh && \
+    echo '  exec "$@"' >> /entrypoint.sh && \
+    echo 'else' >> /entrypoint.sh && \
+    echo '  Xvfb :0 -screen 0 1024x768x16 &' >> /entrypoint.sh && \
+    echo '  export DISPLAY=:0' >> /entrypoint.sh && \
+    echo '  exec /startup.sh' >> /entrypoint.sh && \
+    echo 'fi' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
 # ✅ Switch to non-root user for security
 USER dockeruser
 
-# ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
+# ✅ Expose port 5000 for services
 EXPOSE 5000
 
-# ✅ Use Xvfb for headless environments (e.g., CI/CD) to simulate display, then launch startup script
-ENTRYPOINT ["/bin/bash", "-c", "Xvfb :0 -screen 0 1024x768x16 & export DISPLAY=:0 && /startup.sh"]
+# ✅ Use the entrypoint script to handle headless environments and allow override (for sanity checks)
+ENTRYPOINT ["/entrypoint.sh"]
