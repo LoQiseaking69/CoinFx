@@ -15,27 +15,27 @@ WORKDIR /app
 # ✅ Install required system dependencies (Minimal GUI & Essentials)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
-    libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
-    dbus-x11 xdg-utils libxkbcommon-x11-0 \
-    git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime \
-    xvfb && rm -rf /var/lib/apt/lists/*
+    libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils xauth dbus-x11 xdg-utils \
+    git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime xvfb && \
+    rm -rf /var/lib/apt/lists/*
 
 # ✅ Create /tmp/.X11-unix directory with proper permissions (for Xvfb)
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-# ✅ Create & verify venv, then install all dependencies in one layer
-RUN python3 -m venv /app/venv \
-    && /app/venv/bin/python -m ensurepip --default-pip \
-    && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && /app/venv/bin/python -m pip install --no-cache-dir \
-       numpy scipy tensorflow-cpu keras pandas \
-       scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
-       ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-       oandapyV20 \
-    && /app/venv/bin/python -m pip uninstall -y six \
-    && /app/venv/bin/python -m pip install --no-cache-dir "six>=1.12.0" \
-    && /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
-    && rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
+# ✅ Copy project files
+COPY . .
+
+# ✅ Create & verify venv, install dependencies in one layer
+RUN python3 -m venv /app/venv && \
+    /app/venv/bin/python -m ensurepip --default-pip && \
+    /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    /app/venv/bin/python -m pip install --no-cache-dir \
+       numpy scipy tensorflow-cpu keras pandas scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
+       ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn oandapyV20 && \
+    /app/venv/bin/python -m pip uninstall -y six && \
+    /app/venv/bin/python -m pip install --no-cache-dir "six>=1.12.0" && \
+    /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git && \
+    rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
@@ -43,7 +43,7 @@ RUN chmod +x /app/main.py
 # ✅ Create a non-root user for security & set permissions
 RUN useradd -m dockeruser && chown -R dockeruser /app /app/venv
 
-# ✅ Create startup script for launching the application with X11 authentication
+# ✅ Consolidate startup scripts into one RUN statement for efficiency
 RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'echo "🔥 Allowing X11 connections..."' >> /startup.sh && \
     echo 'xhost +local:docker' >> /startup.sh && \
@@ -69,17 +69,35 @@ RUN echo "xhost +local:docker" >> /etc/bash.bashrc
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo 'set -e' >> /entrypoint.sh && \
     echo 'if [ -z "$DISPLAY" ]; then' >> /entrypoint.sh && \
-    echo '  echo "DISPLAY not set, defaulting to :0"' >> /entrypoint.sh && \
     echo '  export DISPLAY=:0' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
-    echo 'echo "Checking if Xvfb is running..."' >> /entrypoint.sh && \
-    echo 'ps aux | grep Xvfb || (echo "Xvfb not running, starting Xvfb..." && Xvfb :0 -screen 0 1024x768x16 &)' >> /entrypoint.sh && \
-    echo 'timeout=10' >> /entrypoint.sh && \
-    echo 'while [ $timeout -gt 0 ]; do' >> /entrypoint.sh && \
-    echo '  if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
-    echo '    echo "Xvfb started successfully on $DISPLAY."' >> /entrypoint.sh && \
-    echo '    break' >> /entrypoint.sh && \
+    echo 'echo "Checking for existing X server on $DISPLAY..."' >> /entrypoint.sh && \
+    echo 'if ! xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo '  echo "No X server detected on $DISPLAY, starting Xvfb..."' >> /entrypoint.sh && \
+    echo '  Xvfb "$DISPLAY" -screen 0 1024x768x16 &' >> /entrypoint.sh && \
+    echo '  timeout=10' >> /entrypoint.sh && \
+    echo '  while [ $timeout -gt 0 ]; do' >> /entrypoint.sh && \
+    echo '    if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo '      break' >> /entrypoint.sh && \
+    echo '    fi' >> /entrypoint.sh && \
+    echo '    sleep 1' >> /entrypoint.sh && \
+    echo '    timeout=$((timeout-1))' >> /entrypoint.sh && \
+    echo '  done' >> /entrypoint.sh && \
+    echo '  if [ $timeout -eq 0 ]; then' >> /entrypoint.sh && \
+    echo '    echo "Failed to start Xvfb. Exiting."' >> /entrypoint.sh && \
+    echo '    exit 1' >> /entrypoint.sh && \
     echo '  fi' >> /entrypoint.sh && \
-    echo '  sleep 1' >> /entrypoint.sh && \
-    echo '  timeout=$((timeout-1))' >> /entrypoint.sh && \
-    echo 'done' >> /entrypoint.sh
+    echo 'fi' >> /entrypoint.sh && \
+    echo 'echo "Allowing X11 connections..."' >> /entrypoint.sh && \
+    echo 'xhost +local:docker' >> /entrypoint.sh && \
+    echo 'exec /startup.sh' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+# ✅ Switch to non-root user for security
+USER dockeruser
+
+# ✅ Expose port 5000 for services
+EXPOSE 5000
+
+# ✅ Use the entrypoint script to ensure a working display and launch the application
+ENTRYPOINT ["/entrypoint.sh"]
