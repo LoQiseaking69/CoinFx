@@ -26,16 +26,21 @@ COPY . .
 # ✅ Create & verify venv, then install all dependencies in one layer
 RUN python3 -m venv /app/venv \
  && /app/venv/bin/python -m ensurepip --default-pip \
- && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
- && /app/venv/bin/python -m pip install --no-cache-dir \
+ && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+RUN /app/venv/bin/python -m pip install --no-cache-dir \
     numpy scipy tensorflow-cpu keras pandas \
     scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
     ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-    oandapyV20 \  # Added oandapyV20 module here
- && /app/venv/bin/python -m pip uninstall -y six \
- && /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0 \
- && /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
- && rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
+    oandapyV20
+
+RUN /app/venv/bin/python -m pip uninstall -y six
+
+RUN /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0
+
+RUN /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git
+
+RUN rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
 
 # ✅ Set correct permissions for execution
 RUN chmod +x /app/main.py
