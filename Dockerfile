@@ -15,7 +15,7 @@ WORKDIR /app
 # ✅ Install required system dependencies (Minimal GUI & Essentials)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
-    libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
+    libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth xdpyinfo \
     dbus-x11 xdg-utils libxkbcommon-x11-0 \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime \
     xvfb && rm -rf /var/lib/apt/lists/*
@@ -46,27 +46,58 @@ RUN chmod +x /app/main.py
 # ✅ Create a non-root user for security & set permissions
 RUN useradd -m dockeruser && chown -R dockeruser /app /app/venv
 
-# ✅ Create startup script for launching the application with Xvfb
+# ✅ Create startup script for launching the application with X11 authentication
 RUN echo '#!/bin/bash' > /startup.sh && \
-    echo 'echo "🔥 Starting virtual display..."' >> /startup.sh && \
-    echo 'Xvfb :0 -screen 0 1024x768x16 &' >> /startup.sh && \
-    echo 'export DISPLAY=:0' >> /startup.sh && \
+    echo 'echo "🔥 Allowing X11 connections..."' >> /startup.sh && \
+    echo 'xhost +local:docker' >> /startup.sh && \
+    echo 'echo "🖥️ Setting up X11 authentication..."' >> /startup.sh && \
+    echo 'touch /tmp/.docker.xauth' >> /startup.sh && \
+    echo 'xauth generate "$DISPLAY" . trusted' >> /startup.sh && \
+    echo 'xauth add "$DISPLAY" . $(uuidgen)' >> /startup.sh && \
+    echo 'chown dockeruser:dockeruser /tmp/.docker.xauth' >> /startup.sh && \
     echo 'echo "🚀 Launching application..."' >> /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
     chmod +x /startup.sh
 
 # ✅ Create global fxcbot script BEFORE switching users
 RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
-    echo 'docker run --rm -it --name coinfx-trading-bot -e DISPLAY=:0 coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
+    echo 'xhost +local:docker' | tee -a /etc/bash.bashrc && \
+    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.docker.xauth -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth --name coinfx-trading-bot coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
     chmod +x /usr/local/bin/fxcbot
 
-# ✅ Create an entrypoint script to support command overrides (for sanity checks)
+# ✅ Ensure xhost commands persist for GUI visibility
+RUN echo "xhost +local:docker" >> /etc/bash.bashrc
+
+# ✅ Create an entrypoint script that ensures a display is available
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
-    echo 'if [ "$#" -gt 0 ]; then' >> /entrypoint.sh && \
-    echo '  exec "$@"' >> /entrypoint.sh && \
-    echo 'else' >> /entrypoint.sh && \
-    echo '  exec /startup.sh' >> /entrypoint.sh && \
+    echo 'set -e' >> /entrypoint.sh && \
+    echo 'if [ -z "$DISPLAY" ]; then' >> /entrypoint.sh && \
+    echo '  echo "DISPLAY not set, defaulting to :0"' >> /entrypoint.sh && \
+    echo '  export DISPLAY=:0' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
+    echo 'echo "Checking for existing X server on $DISPLAY..."' >> /entrypoint.sh && \
+    echo 'if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo '  echo "X server detected on $DISPLAY, using existing display."' >> /entrypoint.sh && \
+    echo 'else' >> /entrypoint.sh && \
+    echo '  echo "No X server detected on $DISPLAY, attempting to start Xvfb..."' >> /entrypoint.sh && \
+    echo '  Xvfb "$DISPLAY" -screen 0 1024x768x16 &' >> /entrypoint.sh && \
+    echo '  timeout=10' >> /entrypoint.sh && \
+    echo '  while [ $timeout -gt 0 ]; do' >> /entrypoint.sh && \
+    echo '    if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo '      echo "Xvfb started successfully on $DISPLAY."' >> /entrypoint.sh && \
+    echo '      break' >> /entrypoint.sh && \
+    echo '    fi' >> /entrypoint.sh && \
+    echo '    sleep 1' >> /entrypoint.sh && \
+    echo '    timeout=$((timeout-1))' >> /entrypoint.sh && \
+    echo '  done' >> /entrypoint.sh && \
+    echo '  if [ $timeout -eq 0 ]; then' >> /entrypoint.sh && \
+    echo '    echo "Failed to start Xvfb on $DISPLAY. Exiting."' >> /entrypoint.sh && \
+    echo '    exit 1' >> /entrypoint.sh && \
+    echo '  fi' >> /entrypoint.sh && \
+    echo 'fi' >> /entrypoint.sh && \
+    echo 'echo "Allowing X11 connections..."' >> /entrypoint.sh && \
+    echo 'xhost +local:docker' >> /entrypoint.sh && \
+    echo 'exec /startup.sh' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
 # ✅ Switch to non-root user for security
@@ -75,5 +106,5 @@ USER dockeruser
 # ✅ Expose port 5000 for services
 EXPOSE 5000
 
-# ✅ Use the entrypoint script to handle headless environments and allow override
+# ✅ Use the entrypoint script to ensure a display is available and launch the application
 ENTRYPOINT ["/entrypoint.sh"]
