@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime \
     xvfb && rm -rf /var/lib/apt/lists/*
 
+# ✅ Create /tmp/.X11-unix directory with proper permissions (for Xvfb)
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
 # ✅ Copy project files (So we can install dependencies from them)
 COPY . .
 
@@ -28,12 +31,12 @@ RUN python3 -m venv /app/venv \
     && /app/venv/bin/python -m ensurepip --default-pip \
     && /app/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
     && /app/venv/bin/python -m pip install --no-cache-dir \
-    numpy scipy tensorflow-cpu keras pandas \
-    scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
-    ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
-    oandapyV20 \
+       numpy scipy tensorflow-cpu keras pandas \
+       scikit-learn websocket-client websockets grpcio protobuf python-dotenv requests \
+       ccxt pyjwt cryptography matplotlib ipywidgets flask fastapi uvicorn \
+       oandapyV20 \
     && /app/venv/bin/python -m pip uninstall -y six \
-    && /app/venv/bin/python -m pip install --no-cache-dir six>=1.12.0 \
+    && /app/venv/bin/python -m pip install --no-cache-dir "six>=1.12.0" \
     && /app/venv/bin/python -m pip install --no-cache-dir git+https://github.com/danpaquin/coinbasepro-python.git \
     && rm -rf /app/.cache /root/.cache /tmp/pip* /var/lib/apt/lists/*
 
@@ -71,5 +74,5 @@ USER dockeruser
 # ✅ Expose port 5000 for Flask, FastAPI, or WebSocket services
 EXPOSE 5000
 
-# ✅ Use Xvfb for headless environments (e.g., CI/CD) to simulate display
+# ✅ Use Xvfb for headless environments (e.g., CI/CD) to simulate display, then launch startup script
 ENTRYPOINT ["/bin/bash", "-c", "Xvfb :0 -screen 0 1024x768x16 & export DISPLAY=:0 && /startup.sh"]
