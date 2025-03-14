@@ -46,36 +46,25 @@ RUN chmod +x /app/main.py
 # ✅ Create a non-root user for security & set permissions
 RUN useradd -m dockeruser && chown -R dockeruser /app /app/venv
 
-# ✅ Create startup script for launching the application with X11 authentication
+# ✅ Create startup script for launching the application with Xvfb
 RUN echo '#!/bin/bash' > /startup.sh && \
-    echo 'echo "🔥 Allowing X11 connections..."' >> /startup.sh && \
-    echo 'xhost +local:docker' >> /startup.sh && \
-    echo 'echo "🖥️ Setting up X11 authentication..."' >> /startup.sh && \
-    echo 'touch /tmp/.docker.xauth' >> /startup.sh && \
-    echo 'xauth generate "$DISPLAY" . trusted' >> /startup.sh && \
-    echo 'xauth list' >> /startup.sh && \
-    echo 'xauth add "$DISPLAY" . $(xauth list | awk '"'"'{print $3}'"'"')' >> /startup.sh && \
-    echo 'chown dockeruser:dockeruser /tmp/.docker.xauth' >> /startup.sh && \
+    echo 'echo "🔥 Starting virtual display..."' >> /startup.sh && \
+    echo 'Xvfb :0 -screen 0 1024x768x16 &' >> /startup.sh && \
+    echo 'export DISPLAY=:0' >> /startup.sh && \
     echo 'echo "🚀 Launching application..."' >> /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
     chmod +x /startup.sh
 
 # ✅ Create global fxcbot script BEFORE switching users
 RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
-    echo 'xhost +local:docker' | tee -a /etc/bash.bashrc && \
-    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.docker.xauth -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth --name coinfx-trading-bot coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
+    echo 'docker run --rm -it --name coinfx-trading-bot -e DISPLAY=:0 coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
     chmod +x /usr/local/bin/fxcbot
-
-# ✅ Ensure xhost commands persist for GUI visibility
-RUN echo "xhost +local:docker" >> /etc/bash.bashrc
 
 # ✅ Create an entrypoint script to support command overrides (for sanity checks)
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo 'if [ "$#" -gt 0 ]; then' >> /entrypoint.sh && \
     echo '  exec "$@"' >> /entrypoint.sh && \
     echo 'else' >> /entrypoint.sh && \
-    echo '  Xvfb :0 -screen 0 1024x768x16 &' >> /entrypoint.sh && \
-    echo '  export DISPLAY=:0' >> /entrypoint.sh && \
     echo '  exec /startup.sh' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
@@ -86,5 +75,5 @@ USER dockeruser
 # ✅ Expose port 5000 for services
 EXPOSE 5000
 
-# ✅ Use the entrypoint script to handle headless environments and allow override (for sanity checks)
+# ✅ Use the entrypoint script to handle headless environments and allow override
 ENTRYPOINT ["/entrypoint.sh"]
