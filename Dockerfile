@@ -23,9 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ✅ Create /tmp/.X11-unix directory with proper permissions (for Xvfb)
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-# ✅ Copy project files
-COPY . .
-
 # ✅ Create & verify venv, then install all dependencies in one layer
 RUN python3 -m venv /app/venv \
     && /app/venv/bin/python -m ensurepip --default-pip \
@@ -75,36 +72,14 @@ RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo '  echo "DISPLAY not set, defaulting to :0"' >> /entrypoint.sh && \
     echo '  export DISPLAY=:0' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
-    echo 'echo "Checking for existing X server on $DISPLAY..."' >> /entrypoint.sh && \
-    echo 'if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
-    echo '  echo "X server detected on $DISPLAY, using existing display."' >> /entrypoint.sh && \
-    echo 'else' >> /entrypoint.sh && \
-    echo '  echo "No X server detected on $DISPLAY, attempting to start Xvfb..."' >> /entrypoint.sh && \
-    echo '  Xvfb "$DISPLAY" -screen 0 1024x768x16 &' >> /entrypoint.sh && \
-    echo '  timeout=10' >> /entrypoint.sh && \
-    echo '  while [ $timeout -gt 0 ]; do' >> /entrypoint.sh && \
-    echo '    if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
-    echo '      echo "Xvfb started successfully on $DISPLAY."' >> /entrypoint.sh && \
-    echo '      break' >> /entrypoint.sh && \
-    echo '    fi' >> /entrypoint.sh && \
-    echo '    sleep 1' >> /entrypoint.sh && \
-    echo '    timeout=$((timeout-1))' >> /entrypoint.sh && \
-    echo '  done' >> /entrypoint.sh && \
-    echo '  if [ $timeout -eq 0 ]; then' >> /entrypoint.sh && \
-    echo '    echo "Failed to start Xvfb on $DISPLAY. Exiting."' >> /entrypoint.sh && \
-    echo '    exit 1' >> /entrypoint.sh && \
+    echo 'echo "Checking if Xvfb is running..."' >> /entrypoint.sh && \
+    echo 'ps aux | grep Xvfb || (echo "Xvfb not running, starting Xvfb..." && Xvfb :0 -screen 0 1024x768x16 &)' >> /entrypoint.sh && \
+    echo 'timeout=10' >> /entrypoint.sh && \
+    echo 'while [ $timeout -gt 0 ]; do' >> /entrypoint.sh && \
+    echo '  if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo '    echo "Xvfb started successfully on $DISPLAY."' >> /entrypoint.sh && \
+    echo '    break' >> /entrypoint.sh && \
     echo '  fi' >> /entrypoint.sh && \
-    echo 'fi' >> /entrypoint.sh && \
-    echo 'echo "Allowing X11 connections..."' >> /entrypoint.sh && \
-    echo 'xhost +local:docker' >> /entrypoint.sh && \
-    echo 'exec /startup.sh' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
-
-# ✅ Switch to non-root user for security
-USER dockeruser
-
-# ✅ Expose port 5000 for services
-EXPOSE 5000
-
-# ✅ Use the entrypoint script to ensure a working display and launch the application
-ENTRYPOINT ["/entrypoint.sh"]
+    echo '  sleep 1' >> /entrypoint.sh && \
+    echo '  timeout=$((timeout-1))' >> /entrypoint.sh && \
+    echo 'done' >> /entrypoint.sh
