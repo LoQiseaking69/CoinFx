@@ -15,7 +15,7 @@ WORKDIR /app
 # ✅ Install required system dependencies (Minimal GUI & Essentials)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-venv python3-tk libxcb1 tk-dev libxt6 libxrender1 libx11-6 \
-    libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth xdpyinfo \
+    libxss1 libgl1-mesa-glx libglib2.0-0 x11-xserver-utils x11-apps xauth \
     dbus-x11 xdg-utils libxkbcommon-x11-0 \
     git curl unzip libssl-dev libffi-dev libsqlite3-dev util-linux uuid-runtime \
     xvfb && rm -rf /var/lib/apt/lists/*
@@ -68,7 +68,7 @@ RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
 # ✅ Ensure xhost commands persist for GUI visibility
 RUN echo "xhost +local:docker" >> /etc/bash.bashrc
 
-# ✅ Create an entrypoint script that ensures a display is available
+# ✅ Create an entrypoint script that ensures a working display
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo 'set -e' >> /entrypoint.sh && \
     echo 'if [ -z "$DISPLAY" ]; then' >> /entrypoint.sh && \
@@ -76,14 +76,14 @@ RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo '  export DISPLAY=:0' >> /entrypoint.sh && \
     echo 'fi' >> /entrypoint.sh && \
     echo 'echo "Checking for existing X server on $DISPLAY..."' >> /entrypoint.sh && \
-    echo 'if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo 'if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
     echo '  echo "X server detected on $DISPLAY, using existing display."' >> /entrypoint.sh && \
     echo 'else' >> /entrypoint.sh && \
     echo '  echo "No X server detected on $DISPLAY, attempting to start Xvfb..."' >> /entrypoint.sh && \
     echo '  Xvfb "$DISPLAY" -screen 0 1024x768x16 &' >> /entrypoint.sh && \
     echo '  timeout=10' >> /entrypoint.sh && \
     echo '  while [ $timeout -gt 0 ]; do' >> /entrypoint.sh && \
-    echo '    if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then' >> /entrypoint.sh && \
+    echo '    if xset q >/dev/null 2>&1; then' >> /entrypoint.sh && \
     echo '      echo "Xvfb started successfully on $DISPLAY."' >> /entrypoint.sh && \
     echo '      break' >> /entrypoint.sh && \
     echo '    fi' >> /entrypoint.sh && \
@@ -106,5 +106,5 @@ USER dockeruser
 # ✅ Expose port 5000 for services
 EXPOSE 5000
 
-# ✅ Use the entrypoint script to ensure a display is available and launch the application
+# ✅ Use the entrypoint script to ensure a working display and launch the application
 ENTRYPOINT ["/entrypoint.sh"]
