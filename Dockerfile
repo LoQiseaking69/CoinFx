@@ -53,7 +53,7 @@ RUN echo '#!/bin/bash' > /startup.sh && \
     echo 'echo "🖥️ Setting up X11 authentication..."' >> /startup.sh && \
     echo 'touch /tmp/.docker.xauth' >> /startup.sh && \
     echo 'xauth generate "$DISPLAY" . trusted' >> /startup.sh && \
-    echo 'xauth add "$DISPLAY" . $(uuidgen)' >> /startup.sh && \
+    echo 'xauth add "$DISPLAY" . $(xauth list | tail -1 | awk "{print \$3}")' >> /startup.sh && \
     echo 'chown dockeruser:dockeruser /tmp/.docker.xauth' >> /startup.sh && \
     echo 'echo "🚀 Launching application..."' >> /startup.sh && \
     echo 'exec /app/venv/bin/python /app/main.py' >> /startup.sh && \
@@ -62,7 +62,7 @@ RUN echo '#!/bin/bash' > /startup.sh && \
 # ✅ Create global fxcbot script BEFORE switching users
 RUN echo '#!/bin/bash' > /usr/local/bin/fxcbot && \
     echo 'xhost +local:docker' | tee -a /etc/bash.bashrc && \
-    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.docker.xauth -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth --name coinfx-trading-bot coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
+    echo 'docker run --rm -it -e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.docker.xauth -v /tmp/.X11-unix:/tmp/.X11-unix -v /tmp/.docker.xauth:/tmp/.docker.xauth --name coinfx-trading-bot ghcr.io/loqiseaking69/coinfx-trading-bot:latest "$@"' >> /usr/local/bin/fxcbot && \
     chmod +x /usr/local/bin/fxcbot
 
 # ✅ Ensure xhost commands persist for GUI visibility
