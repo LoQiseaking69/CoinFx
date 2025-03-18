@@ -21,7 +21,7 @@ class TradingBotGUI:
         self.start_button = tk.Button(root, text="Start Trading", command=self.start_trading)
         self.start_button.pack(pady=10)
 
-        self.stop_button = tk.Button(root, text="Stop Trading", command=self.stop_trading)
+        self.stop_button = tk.Button(root, text="Stop Trading", command=self.stop_trading, state=tk.DISABLED)
         self.stop_button.pack(pady=10)
 
         self.status_label = tk.Label(root, text="Status: Idle", font=("Arial", 12))
@@ -33,7 +33,11 @@ class TradingBotGUI:
             self.trading_active = True
             self.trade_thread = threading.Thread(target=self.execute_trades, daemon=True)
             self.trade_thread.start()
-            self.status_label.config(text="Status: Trading Active")
+
+            # Update UI (Must use `after` to avoid thread conflicts)
+            self.root.after(0, self.update_status, "Trading Active")
+            self.start_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.NORMAL)
             messagebox.showinfo("Trading Bot", "Trading Started.")
 
     def execute_trades(self):
@@ -41,22 +45,31 @@ class TradingBotGUI:
         while self.trading_active:
             try:
                 prediction = predict_price()
+
                 if prediction is not None:
                     logger.info(f"Predicted Price: {prediction}")
                 else:
                     logger.warning("Prediction returned None. Skipping trade cycle.")
-                
-                time.sleep(5)
+
+                time.sleep(5)  # Prevents excessive API calls
 
             except Exception as e:
                 logger.error(f"Error during trade execution: {e}")
-                self.status_label.config(text="Status: Error")
+                self.root.after(0, self.update_status, "Error")
+                self.trading_active = False  # Stop trading if error occurs
+                break
 
     def stop_trading(self):
         """Stop the trading process."""
         self.trading_active = False
-        self.status_label.config(text="Status: Stopped")
+        self.root.after(0, self.update_status, "Stopped")
+        self.start_button.config(state=tk.NORMAL)
+        self.stop_button.config(state=tk.DISABLED)
         messagebox.showinfo("Trading Bot", "Trading Stopped.")
+
+    def update_status(self, status_text):
+        """Thread-safe method to update the status label."""
+        self.status_label.config(text=f"Status: {status_text}")
 
 if __name__ == "__main__":
     root = tk.Tk()
