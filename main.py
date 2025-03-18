@@ -44,9 +44,15 @@ class CoinFxGUI:
     def setup_ui(self):
         """Set up the GUI with all components."""
         self.tab_control = ttk.Notebook(self.root)
-        self.tabs = {name: ttk.Frame(self.tab_control) for name in [
-            "Dashboard", "AI Model", "Genetic Algorithm", "Backtesting", "Trade Logs", "Settings"
-        ]}
+        self.tabs = {
+            "Dashboard": ttk.Frame(self.tab_control),
+            "AI Model": ttk.Frame(self.tab_control),
+            "Genetic Algorithm": ttk.Frame(self.tab_control),
+            "Backtesting": ttk.Frame(self.tab_control),
+            "Trade Logs": ttk.Frame(self.tab_control),
+            "Settings": ttk.Frame(self.tab_control),
+        }
+
         for name, frame in self.tabs.items():
             self.tab_control.add(frame, text=name)
         self.tab_control.pack(expand=1, fill="both")
@@ -64,9 +70,7 @@ class CoinFxGUI:
     def create_dashboard(self):
         """Main Trading Dashboard."""
         frame = self.tabs["Dashboard"]
-
-        title_label = tk.Label(frame, text="CoinFx Trading Dashboard", font=("Arial", 18, "bold"), bg="#121212", fg="#E0E0E0")
-        title_label.pack(pady=10)
+        tk.Label(frame, text="CoinFx Trading Dashboard", font=("Arial", 18, "bold"), bg="#121212", fg="#E0E0E0").pack(pady=10)
 
         assets = ["BTC-USD", "ETH-USD", "LTC-USD", "XRP-USD", "ADA-USD"]
         self.asset_dropdown = ttk.Combobox(frame, values=assets, textvariable=self.asset_selected)
@@ -126,15 +130,14 @@ class CoinFxGUI:
         logger.info(f"Executing trade with signal: {signal}")
         self.api_manager.execute_trade(asset, signal, "coinbase")
 
-    def predict_price(self):
-        """Predict the next price using the trained AI model."""
-        try:
-            predicted_price = predict_price()
-            text = f"Predicted Price: {predicted_price:.2f}" if predicted_price is not None else "Predicted Price: Unavailable"
-            self.update_ui_element(self.prediction_label, text)
-        except Exception as e:
-            logger.error(f"Prediction error: {e}")
-            self.update_ui_element(self.prediction_label, "Prediction Error")
+    def create_ai_tab(self):
+        """Create AI Model tab."""
+        frame = self.tabs["AI Model"]
+        tk.Label(frame, text="AI Model Training & Prediction", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0").pack(pady=10)
+
+        self.train_model_button = tk.Button(frame, text="Train Model", command=self.train_ai_model)
+        apply_style(self.train_model_button, "button")
+        self.train_model_button.pack(pady=10)
 
     def train_ai_model(self):
         """Train AI model asynchronously."""
@@ -150,12 +153,46 @@ class CoinFxGUI:
             logger.error(f"AI Model training failed: {e}")
             messagebox.showerror("Training Failed", "An error occurred during training.")
 
-    def update_ui_element(self, element, text):
-        """Thread-safe method to update a UI element."""
-        self.root.after(0, element.config, {"text": text})
+    def create_ga_tab(self):
+        """Create Genetic Algorithm tab."""
+        frame = self.tabs["Genetic Algorithm"]
+        tk.Label(frame, text="Genetic Algorithm Optimization", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0").pack(pady=10)
+
+        tk.Button(frame, text="Run Genetic Algorithm", command=lambda: threading.Thread(target=self.execute_trading_strategy, daemon=True).start()).pack(pady=10)
+
+    def create_backtesting_tab(self):
+        """Create Backtesting tab."""
+        frame = self.tabs["Backtesting"]
+        tk.Label(frame, text="Backtesting Trading Strategies", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0").pack(pady=10)
+
+        tk.Button(frame, text="Run Backtest", command=self.run_backtest).pack(pady=10)
+
+    def run_backtest(self):
+        """Run backtesting simulation."""
+        asset = self.asset_selected.get()
+        market_data = get_historical_data(asset.split("-")[0])
+        
+        if not market_data:
+            messagebox.showerror("Backtest Error", "Failed to fetch market data!")
+            return
+
+        strategy = GeneticTradingStrategy(market_data)
+        results = strategy.backtest()
+
+        messagebox.showinfo("Backtest Complete", f"Backtest Results: {results}")
+
+    def create_logs_tab(self):
+        """Create Trade Logs tab."""
+        frame = self.tabs["Trade Logs"]
+        tk.Label(frame, text="Trade Logs", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0").pack(pady=10)
+
+    def create_settings_tab(self):
+        """Create Settings tab."""
+        frame = self.tabs["Settings"]
+        tk.Label(frame, text="Settings", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0").pack(pady=10)
 
     def update_ui_status(self, status_text, disable_start=False, enable_start=False, disable_stop=False, enable_stop=False):
-        """Thread-safe method to update the status label and buttons."""
+        """Thread-safe method to update UI."""
         self.root.after(0, self.market_data_label.config, {"text": f"Status: {status_text}"})
         if disable_start:
             self.start_button.config(state=tk.DISABLED)
@@ -165,23 +202,6 @@ class CoinFxGUI:
             self.stop_button.config(state=tk.DISABLED)
         if enable_stop:
             self.stop_button.config(state=tk.NORMAL)
-
-    def create_ai_tab(self):
-        """Create AI Model tab."""
-        frame = self.tabs["AI Model"]
-        label = tk.Label(frame, text="AI Model Training & Prediction", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
-        label.pack(pady=10)
-        self.train_model_button = tk.Button(frame, text="Train Model", command=self.train_ai_model)
-        apply_style(self.train_model_button, "button")
-        self.train_model_button.pack(pady=10)
-
-    def create_ga_tab(self): pass  # Placeholder
-
-    def create_backtesting_tab(self): pass  # Placeholder
-
-    def create_logs_tab(self): pass  # Placeholder
-
-    def create_settings_tab(self): pass  # Placeholder
 
 if __name__ == "__main__":
     root = tk.Tk()
