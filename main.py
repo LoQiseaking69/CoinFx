@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import threading
 import asyncio
 import tkinter as tk
@@ -14,16 +13,15 @@ from config import get_logger, TRADING_CONFIG
 
 logger = get_logger()
 
-# ✅ Asynchronous Market Data Handling with Exception Handling
+# ✅ Asynchronous Market Data Handling
 async def async_market_data():
     """Runs market data listener asynchronously."""
     loop = asyncio.get_event_loop()
     try:
-        loop.run_in_executor(None, start_live_data_listener)
+        await loop.run_in_executor(None, start_live_data_listener)
     except Exception as e:
-        logger.error(f"Error in market data listener: {e}")
+        logger.error(f"Market Data Listener Error: {e}")
 
-# ✅ Improved Trading System GUI
 class CoinFxGUI:
     def __init__(self, root):
         """Initialize the AI Trading GUI."""
@@ -34,17 +32,17 @@ class CoinFxGUI:
 
         self.api_manager = APIManager()
         self.asset_selected = tk.StringVar(value="BTC-USD")
-        self.trading_active = False  # Flag for trading control
+        self.trading_active = False  
 
         self.setup_ui()
-        self.market_data_thread = threading.Thread(
-            target=lambda: asyncio.run(async_market_data()),
-            daemon=True
-        )
-        self.market_data_thread.start()
+        self.start_background_tasks()
+
+    def start_background_tasks(self):
+        """Start market data listener in a background thread."""
+        threading.Thread(target=lambda: asyncio.run(async_market_data()), daemon=True).start()
 
     def setup_ui(self):
-        """Set up the main GUI with all components."""
+        """Set up the GUI with all components."""
         self.tab_control = ttk.Notebook(self.root)
         self.tabs = {name: ttk.Frame(self.tab_control) for name in [
             "Dashboard", "AI Model", "Genetic Algorithm", "Backtesting", "Trade Logs", "Settings"
@@ -70,26 +68,21 @@ class CoinFxGUI:
         title_label = tk.Label(frame, text="CoinFx Trading Dashboard", font=("Arial", 18, "bold"), bg="#121212", fg="#E0E0E0")
         title_label.pack(pady=10)
 
-        # Asset Selection Dropdown
         assets = ["BTC-USD", "ETH-USD", "LTC-USD", "XRP-USD", "ADA-USD"]
         self.asset_dropdown = ttk.Combobox(frame, values=assets, textvariable=self.asset_selected)
         self.asset_dropdown.pack(pady=5)
 
-        # Live Market Data Display
         self.market_data_label = tk.Label(frame, text="Fetching market data...", font=("Arial", 12), bg="#121212", fg="#1DB954")
         self.market_data_label.pack(pady=5)
 
-        # AI Predicted Price Display
         self.prediction_label = tk.Label(frame, text="Predicted Price: --", font=("Arial", 12, "bold"), bg="#121212", fg="#E0E0E0")
         self.prediction_label.pack(pady=5)
 
-        # Start Trading Button
         self.start_button = tk.Button(frame, text="Start Trading", command=self.start_trading)
         apply_style(self.start_button, "button")
         self.start_button.pack(pady=10)
 
-        # Stop Trading Button
-        self.stop_button = tk.Button(frame, text="Stop Trading", command=self.stop_trading)
+        self.stop_button = tk.Button(frame, text="Stop Trading", command=self.stop_trading, state=tk.DISABLED)
         apply_style(self.stop_button, "button")
         self.stop_button.pack(pady=10)
 
@@ -100,7 +93,8 @@ class CoinFxGUI:
             return
 
         self.trading_active = True
-        messagebox.showinfo("Trading Started", "AI Trading Bot is now active!")
+        self.update_ui_status("Trading Active", disable_start=True, enable_stop=True)
+
         threading.Thread(target=self.execute_trading_strategy, daemon=True).start()
 
     def stop_trading(self):
@@ -110,10 +104,10 @@ class CoinFxGUI:
             return
 
         self.trading_active = False
-        messagebox.showwarning("Trading Stopped", "Trading Bot has been halted.")
+        self.update_ui_status("Trading Stopped", disable_stop=True, enable_start=True)
 
     def execute_trading_strategy(self):
-        """Run the AI trading strategy using Genetic Algorithm Optimization."""
+        """Run AI trading strategy with Genetic Algorithm Optimization."""
         if not self.trading_active:
             return
 
@@ -136,22 +130,11 @@ class CoinFxGUI:
         """Predict the next price using the trained AI model."""
         try:
             predicted_price = predict_price()
-            if predicted_price is not None:
-                self.prediction_label.config(text=f"Predicted Price: {predicted_price:.2f}")
-            else:
-                self.prediction_label.config(text="Predicted Price: Unavailable")
+            text = f"Predicted Price: {predicted_price:.2f}" if predicted_price is not None else "Predicted Price: Unavailable"
+            self.update_ui_element(self.prediction_label, text)
         except Exception as e:
             logger.error(f"Prediction error: {e}")
-            self.prediction_label.config(text="Prediction Error")
-
-    def create_ai_tab(self):
-        """Create AI Model tab."""
-        frame = self.tabs["AI Model"]
-        label = tk.Label(frame, text="AI Model Training & Prediction", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
-        label.pack(pady=10)
-        self.train_model_button = tk.Button(frame, text="Train Model", command=self.train_ai_model)
-        apply_style(self.train_model_button, "button")
-        self.train_model_button.pack(pady=10)
+            self.update_ui_element(self.prediction_label, "Prediction Error")
 
     def train_ai_model(self):
         """Train AI model asynchronously."""
@@ -167,33 +150,38 @@ class CoinFxGUI:
             logger.error(f"AI Model training failed: {e}")
             messagebox.showerror("Training Failed", "An error occurred during training.")
 
-    def create_ga_tab(self):
-        """Create Genetic Algorithm tab."""
-        frame = self.tabs["Genetic Algorithm"]
-        label = tk.Label(frame, text="Genetic Algorithm Optimization", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
-        label.pack(pady=10)
-        # Add additional Genetic Algorithm components here
+    def update_ui_element(self, element, text):
+        """Thread-safe method to update a UI element."""
+        self.root.after(0, element.config, {"text": text})
 
-    def create_backtesting_tab(self):
-        """Create Backtesting tab."""
-        frame = self.tabs["Backtesting"]
-        label = tk.Label(frame, text="Backtesting Trading Strategies", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
-        label.pack(pady=10)
-        # Add backtesting components here
+    def update_ui_status(self, status_text, disable_start=False, enable_start=False, disable_stop=False, enable_stop=False):
+        """Thread-safe method to update the status label and buttons."""
+        self.root.after(0, self.market_data_label.config, {"text": f"Status: {status_text}"})
+        if disable_start:
+            self.start_button.config(state=tk.DISABLED)
+        if enable_start:
+            self.start_button.config(state=tk.NORMAL)
+        if disable_stop:
+            self.stop_button.config(state=tk.DISABLED)
+        if enable_stop:
+            self.stop_button.config(state=tk.NORMAL)
 
-    def create_logs_tab(self):
-        """Create Trade Logs tab."""
-        frame = self.tabs["Trade Logs"]
-        label = tk.Label(frame, text="Trade Logs", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
+    def create_ai_tab(self):
+        """Create AI Model tab."""
+        frame = self.tabs["AI Model"]
+        label = tk.Label(frame, text="AI Model Training & Prediction", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
         label.pack(pady=10)
-        # Add trade logs components here
+        self.train_model_button = tk.Button(frame, text="Train Model", command=self.train_ai_model)
+        apply_style(self.train_model_button, "button")
+        self.train_model_button.pack(pady=10)
 
-    def create_settings_tab(self):
-        """Create Settings tab."""
-        frame = self.tabs["Settings"]
-        label = tk.Label(frame, text="Settings", font=("Arial", 14, "bold"), bg="#121212", fg="#E0E0E0")
-        label.pack(pady=10)
-        # Add settings components here
+    def create_ga_tab(self): pass  # Placeholder
+
+    def create_backtesting_tab(self): pass  # Placeholder
+
+    def create_logs_tab(self): pass  # Placeholder
+
+    def create_settings_tab(self): pass  # Placeholder
 
 if __name__ == "__main__":
     root = tk.Tk()
