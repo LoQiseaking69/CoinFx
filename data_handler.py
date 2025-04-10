@@ -8,15 +8,12 @@ import pickle
 import time
 from collections import deque
 from sklearn.preprocessing import MinMaxScaler
-from config import TRADING_CONFIG, get_logger  # ✅ Fixed Import
+from config import TRADING_CONFIG, get_logger
 
 logger = get_logger()
 data_buffer = deque(maxlen=1000)
-
-# ✅ Reference SCALER_FILE Correctly
 SCALER_FILE = TRADING_CONFIG["SCALER_FILE"]
 
-# ✅ Fetch Historical Data with Caching & Error Handling
 def get_historical_data(asset, granularity=300, cache=None):
     """Fetch historical market data with caching and retry logic."""
     if cache is None:
@@ -27,7 +24,7 @@ def get_historical_data(asset, granularity=300, cache=None):
 
     url = f"https://api.pro.coinbase.com/products/{asset}-USD/candles?granularity={granularity}"
     max_retries = 3
-    retry_delay = 5  # seconds
+    retry_delay = 5
 
     for attempt in range(max_retries):
         try:
@@ -42,28 +39,26 @@ def get_historical_data(asset, granularity=300, cache=None):
             df["time"] = pd.to_datetime(df["time"], unit="s")
             df.sort_values("time", inplace=True)
 
-            cache[(asset, granularity)] = df  # Cache data
+            cache[(asset, granularity)] = df
             return df
 
         except (requests.RequestException, ValueError) as e:
-            logger.error(f"⚠️ Error fetching historical data (Attempt {attempt + 1}/{max_retries}): {e}")
+            logger.error(f"Error fetching historical data (Attempt {attempt + 1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
             else:
                 return None
 
-
-# ✅ Preprocess Data & Save Scaler Correctly
-def preprocess_data(df):
-    """Preprocesses historical price data for AI model training."""
+def preprocess_data(df, save_scaler=True):
+    """Preprocess historical price data for AI model training or prediction."""
     try:
         if df is None or df.empty:
-            raise ValueError("❌ DataFrame is empty or None. Cannot preprocess.")
+            raise ValueError("DataFrame is empty or None. Cannot preprocess.")
 
         df["close"] = pd.to_numeric(df["close"], errors="coerce")
 
         if df["close"].isnull().any():
-            raise ValueError("⚠️ Invalid numerical values detected in 'close' column.")
+            raise ValueError("Invalid numerical values detected in 'close' column.")
 
         scaler = MinMaxScaler()
         scaled_data = scaler.fit_transform(df["close"].values.reshape(-1, 1))
@@ -73,29 +68,29 @@ def preprocess_data(df):
             X.append(scaled_data[i - TRADING_CONFIG["LOOKBACK"]:i])
             y.append(scaled_data[i])
 
-        # ✅ Save Scaler File
-        try:
-            with open(SCALER_FILE, "wb") as f:
-                pickle.dump(scaler, f)
-        except Exception as e:
-            logger.error(f"⚠️ Failed to save SCALER_FILE: {e}")
+        if save_scaler:
+            try:
+                with open(SCALER_FILE, "wb") as f:
+                    pickle.dump(scaler, f)
+            except Exception as e:
+                logger.error(f"Failed to save SCALER_FILE: {e}")
 
         return np.array(X).reshape(-1, TRADING_CONFIG["LOOKBACK"], 1), np.array(y), scaler
 
-    except ValueError as e:
-        logger.error(f"❌ Error in data preprocessing: {e}")
+    except Exception as e:
+        logger.error(f"Error in data preprocessing: {e}")
         return None, None, None
 
-
-# ✅ WebSocket for Live Data with Auto-Reconnect
 async def fetch_live_data():
     """Fetch live market data using Coinbase WebSocket API with automatic reconnection."""
+    product_ids = TRADING_CONFIG.get("LIVE_FEED_PRODUCTS", ["BTC-USD"])
+
     while True:
         try:
             async with websockets.connect("wss://ws-feed.pro.coinbase.com") as ws:
                 await ws.send(json.dumps({
                     "type": "subscribe",
-                    "channels": [{"name": "ticker", "product_ids": ["BTC-USD"]}]
+                    "channels": [{"name": "ticker", "product_ids": product_ids}]
                 }))
 
                 while True:
@@ -103,19 +98,21 @@ async def fetch_live_data():
                     data = json.loads(response)
 
                     if "price" in data:
-                        price = float(data["price"])
-                        data_buffer.append(price)
+                        try:
+                            price = float(data["price"])
+                            data_buffer.append(price)
+                        except Exception:
+                            logger.warning(f"Ignored malformed price data: {data}")
+                            continue
 
         except websockets.exceptions.ConnectionClosed as e:
-            logger.warning(f"⚠️ WebSocket disconnected: {e}. Reconnecting in 5 seconds...")
+            logger.warning(f"WebSocket disconnected: {e}. Reconnecting in 5 seconds...")
             await asyncio.sleep(5)
 
         except Exception as e:
-            logger.error(f"❌ Unexpected WebSocket error: {e}. Restarting in 5 seconds...")
+            logger.error(f"Unexpected WebSocket error: {e}. Restarting in 5 seconds...")
             await asyncio.sleep(5)
 
-
-# ✅ Start Live Data Listener in an Async-Safe Way
 def start_live_data_listener():
     """Start the live data listener for real-time market updates."""
     loop = asyncio.new_event_loop()
