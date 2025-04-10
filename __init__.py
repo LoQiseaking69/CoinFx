@@ -1,43 +1,34 @@
 """
 CoinFx Trading Bot Initialization Module 🚀
 
-This module sets up the environment, loads configurations, and ensures that all 
-dependencies are correctly initialized when the package is imported.
+Sets up environment, loads .env, validates configurations, and prepares logging.
 """
 
 import os
 import sys
 import dotenv
 
-# ✅ Load environment variables from .env file
+# Load environment variables
 dotenv.load_dotenv()
 
-# Define the package version
 __version__ = "1.1.0"
 
-# Set up the base directory for imports
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-# Import key components with structured error handling
 try:
-    from .config import settings
-    from .utils.logger import setup_logger
-    from .trading.bot import TradingBot
-    from .api.client import CoinbaseClient, OandaClient
+    from .config import TRADING_CONFIG, get_logger
+    from .genetic_trading import APIManager
 except ImportError as e:
-    print(f"⚠️ Import Error in __init__.py: {e}")
-    sys.exit(1)
+    print(f"⚠️ Import Error in __init__.py: {e} — some components may not function.")
 
-# ✅ Initialize logging
-logger = setup_logger()
+logger = get_logger()
 
-# ✅ Load API credentials securely
+# Validate API credentials
 COINBASE_API_KEY = os.getenv("COINBASE_API_KEY", "").strip()
 COINBASE_API_SECRET = os.getenv("COINBASE_API_SECRET", "").strip()
 OANDA_ACCESS_TOKEN = os.getenv("OANDA_ACCESS_TOKEN", "").strip()
 
-# ✅ Validate API Credentials
 missing_keys = []
 if not COINBASE_API_KEY:
     missing_keys.append("COINBASE_API_KEY")
@@ -47,7 +38,15 @@ if not OANDA_ACCESS_TOKEN:
     missing_keys.append("OANDA_ACCESS_TOKEN")
 
 if missing_keys:
-    logger.warning(f"⚠️ Missing API Credentials: {', '.join(missing_keys)}. Live trading may not function correctly.")
+    logger.warning(f"⚠️ Missing API credentials: {', '.join(missing_keys)} — live trading may not function.")
 
-# ✅ Log initialization success
-logger.info(f"✅ CoinFx Bot v{__version__} initialized successfully with secure configurations!")
+# Validate TRADING_CONFIG structure
+required_config_keys = ["LOOKBACK", "LEARNING_RATE", "EPOCHS", "BATCH_SIZE", "MODEL_FILE", "SCALER_FILE"]
+missing_config_keys = [key for key in required_config_keys if key not in TRADING_CONFIG]
+
+if missing_config_keys:
+    logger.error(f"❌ Missing TRADING_CONFIG keys: {', '.join(missing_config_keys)} — aborting configuration load.")
+else:
+    logger.info(f"✅ TRADING_CONFIG loaded with keys: {', '.join(required_config_keys)}")
+
+logger.info(f"✅ CoinFx Bot v{__version__} initialized.")
