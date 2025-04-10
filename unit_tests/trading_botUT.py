@@ -9,6 +9,7 @@ class TestTradingBotGUI(unittest.TestCase):
     def setUp(self):
         """Initialize a Tkinter root window for testing."""
         self.root = tk.Tk()
+        self.root.withdraw()  # Prevent GUI from displaying during tests
         self.bot = TradingBotGUI(self.root)
 
     def tearDown(self):
@@ -20,8 +21,9 @@ class TestTradingBotGUI(unittest.TestCase):
         self.assertIsInstance(self.bot.start_button, tk.Button)
         self.assertIsInstance(self.bot.stop_button, tk.Button)
         self.assertIsInstance(self.bot.status_label, tk.Label)
+        self.assertIsInstance(self.bot.prediction_label, tk.Label)
 
-    @patch("trading_bot.predict_price", return_value=40500)
+    @patch("trading_bot.predict_price", return_value={"price": 40500.0, "std": 12.5})
     def test_start_trading(self, mock_predict):
         """Test start trading function."""
         self.bot.start_trading()
@@ -30,6 +32,7 @@ class TestTradingBotGUI(unittest.TestCase):
 
     def test_stop_trading(self):
         """Test stop trading function."""
+        self.bot.trading_active = True
         self.bot.stop_trading()
         self.assertFalse(self.bot.trading_active)
         self.assertEqual(self.bot.status_label.cget("text"), "Status: Stopped")
